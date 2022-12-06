@@ -1,5 +1,5 @@
 src/__pycache__
-test/__pycache__
+tests/__pycache__
 .idea
 /secret
 /data
