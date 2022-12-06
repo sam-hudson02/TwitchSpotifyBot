@@ -1,0 +1,6 @@
+src/__pycache__
+test/__pycache__
+.idea
+/secret
+/data
+src/db-test.py
