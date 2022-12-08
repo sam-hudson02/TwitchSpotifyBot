@@ -155,7 +155,7 @@ class Spotify:
             artists = artists.strip(']')
             artists = artists.strip("'")
             artists = artists.replace("'", '')
-            image = info['item']['album']['images'][0]['url']
+            image = info['item']['album']['images'][1]['url']
             artist_profile = self.sp.artist(
                 info['item']['album']['artists'][0]['external_urls']['spotify'])
             artist_image = artist_profile['images'][0]['url']

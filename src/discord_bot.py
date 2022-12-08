@@ -349,9 +349,9 @@ class Commands(commands.Cog):
 
         track, artist = self.db.remove_from_queue_by_id(req_id)
         if track is not None:
-            await interaction.response.send_message(content=f'removed "{track} by {artist}" from queue')
+            await interaction.response.send_message(content=f'removed "{track} by {artist}" from queue', ephemeral=True)
         else:
-            await interaction.response.send_message(content=f'Could not find id: "{req_id}" in queue')
+            await interaction.response.send_message(content=f'Could not find id: "{req_id}" in queue', ephemeral=True)
 
     @discord.app_commands.command(name='clear-queue', description='Clear request queue display (admin only)')
     async def clear_queue(self, interaction: discord.Interaction):
