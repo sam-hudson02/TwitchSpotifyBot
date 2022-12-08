@@ -27,13 +27,19 @@ def get_creds(log: Log):
         'discord leaderboard channel id': os.getenv('DISCORD_LEADERBOARD_CHANNEL_ID'),
     }
     for cred in creds.keys():
-        if creds[cred] is None:
-            log.critical(f'{cred} missing! Not continuing.')
-            raise NoCreds
+        if 'discord' not in cred:
+            if creds[cred] is None:
+                log.critical(f'{cred} missing! Not continuing.')
+                raise NoCreds
     return creds
 
 
 def get_settings():
+    if not exists('./data'):
+        os.mkdir('./data')
+    if not exists('./data/app.sqlite'):
+        with open('./data/app.sqlite', 'w') as db_file:
+            db_file.close()
     if exists('./data/settings.json'):
         with open('./data/settings.json') as s_file:
             settings = json.load(s_file)
