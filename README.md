@@ -30,7 +30,7 @@ pip install -r requirements.txt
 ```
 - Create folder called 'secret' in 'TwitchSpotifyBot' directory
 - In the 'secret' folder create a file called 'conf.env'
-- Open conf.env using and enter the following information:
+- Open conf.env and enter the following information:
 ```
 SPOTIFY_CLIENT_ID="YOUR SPOTIFY CLIENT ID HERE"
 SPOTIFY_SECRET="YOUR SPOTIFY SECRET HERE"
