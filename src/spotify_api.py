@@ -159,14 +159,20 @@ class Spotify:
             artist_profile = self.sp.artist(
                 info['item']['album']['artists'][0]['external_urls']['spotify'])
             artist_image = artist_profile['images'][0]['url']
-            prog = float(int(info['progress_ms']) / 1000)
-            length = float(int(info['item']['duration_ms']) / 1000)
+            prog = info['progress_ms']
+            length = info['item']['duration_ms']
+            track_id = info['item']['id']
+            if info['is_playing']:
+                paused = False
+            else:
+                paused = True
+            timestamp = info['timestamp']
             try:
                 playlist = info['context']['external_urls']['spotify']
             except TypeError:
                 playlist = None
-            return {'track': track, 'artist': artists, 'progress': prog, 'duration': length, 'image': image,
-                    'playlist': playlist, 'artist_image': artist_image}
+            return {'track': track, 'artist': artists, 'progress': prog, 'duration': length,
+                    'album_art': image, 'playlist': playlist, 'playback_id': track_id, 'paused': paused}
         except TypeError as er:
             print(er)
             return None

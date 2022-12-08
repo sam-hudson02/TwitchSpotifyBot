@@ -37,6 +37,10 @@ class TwitchBot(commands.Bot):
         if settings is not None:
             self.settings = settings
 
+    @routines.routine(seconds=3)
+    async def update_song_context(self):
+        await self.ac.update_context()
+
     @staticmethod
     def pull_settings():
         with open('./data/settings.json') as s_file:
@@ -119,6 +123,7 @@ class TwitchBot(commands.Bot):
         self.channel_obj = channel
         self.auto_update_settings.start()
         self.check_live.start()
+        self.update_song_context.start()
 
     async def event_error(self, error: Exception, data: str = None):
         self.log.error(str(error))
