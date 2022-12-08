@@ -74,11 +74,6 @@ class TwitchBot(commands.Bot):
             json.dump(self.settings, s)
             s.close()
 
-    @staticmethod
-    def get_song_context():
-        with open('./data/context.json') as ctx_file:
-            return json.load(ctx_file)
-
     # method for finding a mentioned user
     def target_finder(self, request):
         words = request.split(' ')
@@ -242,11 +237,10 @@ class TwitchBot(commands.Bot):
         request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
         self.log.req(user, request, str(ctx.command.name))
         if self.db.is_user_privileged(user):
-
-            song_context = self.get_song_context()
-            data = {'context': song_context, 'skipped': True}
-            requests.request(
-                'POST', 'http://localhost:3000/skip-track', json=data)
+            await self.ac.play_next(skipped=True)
+            resp = f'Skipping current track!'
+            await ctx.reply(resp)
+            self.log.resp(resp)
         else:
             raise NotAuthorized('mod')
 
@@ -454,14 +448,14 @@ class TwitchBot(commands.Bot):
         request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
 
         self.log.req(user, request, ctx.command.name)
+        if self.ac.context.track is None or self.ac.context.paused:
+            resp = "No song currently playing!"
 
-        song_context = self.get_song_context()
-
-        if song_context['playingQueue']:
-            resp = f"Currently playing {song_context['track']} by {song_context['artist']} as requested by "\
-                   f"@{song_context['requester']} !"
+        elif self.ac.context.playing_queue:
+            resp = f"Currently playing {self.ac.context.track} by {self.ac.context.artist} as requested by "\
+                   f"@{self.ac.context.requester} !"
         else:
-            resp = f"Currently playing {song_context['track']} by {song_context['artist']}!"
+            resp = f"Currently playing {self.ac.context.track} by {self.ac.context.artist}!"
         await ctx.reply(resp)
         self.log.resp(resp)
         return None
@@ -475,14 +469,13 @@ class TwitchBot(commands.Bot):
 
         self.log.req(user, request, ctx.command.name)
 
-        song_context = self.get_song_context()
+        song_context = self.ac.context.get_context()
+
         resp, skip = self.add_veto(song_context, user)
         await ctx.reply(resp)
         self.log.resp(resp)
         if skip:
-            data = {'context': song_context, 'skipped': True}
-            requests.request(
-                'POST', 'http://localhost:3000/skip-track', json=data)
+            self.ac.skip()
 
     def add_veto(self, song_context, user):
         if (song_context['track'], song_context['artist']) != (self.veto_votes['track'], self.veto_votes['artist']):
@@ -510,7 +503,7 @@ class TwitchBot(commands.Bot):
 
         self.log.req(user, request, ctx.command.name)
 
-        song_context = self.get_song_context()
+        song_context = self.ac.context.get_context()
 
         resp = self.add_rate(song_context, user)
         if resp is not None:

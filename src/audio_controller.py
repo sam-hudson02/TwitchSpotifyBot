@@ -111,7 +111,7 @@ class AudioController:
             return
 
         time_left = self.context.duration - self.context.progress
-        print(time_left)
+
         if time_left <= 4000 and time_left > 500:
             if self.next_timer is not None:
                 self.next_timer.cancel()
