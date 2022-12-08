@@ -214,6 +214,8 @@ class DB:
             pos = rows + 1
         elif pos > (rows + 1):
             pos = rows + 1
+        track = track.replace("'", "''")
+        artist = artist.replace("'", "''")
         sql = f"INSERT INTO {self.queue_tb} (requester, track, link, artist, pos) VALUES ('{requester}', '{track}', '{link}', '{artist}', '{pos}')"
         self.cursor.execute(sql)
         self.db.commit()
@@ -238,7 +240,8 @@ class DB:
 
     @error_handler
     def remove_from_queue_by_info(self, track, artist):
-
+        track = track.replace("'", "''")
+        artist = artist.replace("'", "''")
         sql = f"SELECT request_id, pos FROM {self.queue_tb} WHERE track = '{track}' AND artist = '{artist}'"
         self.cursor.execute(sql)
         results = self.cursor.fetchall()
@@ -263,6 +266,7 @@ class DB:
 
     @error_handler
     def get_req_id_by_track_name(self, track_name):
+        track_name = track_name.replace("'", "''")
         sql = f"SELECT request_id FROM {self.queue_tb} WHERE track = '{track_name}'"
         self.cursor.execute(sql)
         results = self.cursor.fetchone()
@@ -310,7 +314,8 @@ class DB:
 
     @error_handler
     def is_track_in_queue(self, track: str, artist: str):
-
+        track = track.replace("'", "''")
+        artist = artist.replace("'", "''")
         sql = f"SELECT * FROM {self.queue_tb} WHERE track = '{track}' AND artist = '{artist}'"
         self.cursor.execute(sql)
         if len(self.cursor.fetchall()) == 0:
@@ -322,7 +327,8 @@ class DB:
 
     @error_handler
     def get_requester(self, track: str, artist: str):
-
+        track = track.replace("'", "''")
+        artist = artist.replace("'", "''")
         sql = f"SELECT requester FROM {self.queue_tb} WHERE track = '{track}' AND artist = '{artist}'"
         self.cursor.execute(sql)
         results = self.cursor.fetchall()
