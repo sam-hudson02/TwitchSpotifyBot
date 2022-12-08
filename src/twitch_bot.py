@@ -92,8 +92,6 @@ class TwitchBot(commands.Bot):
     # e.g. 5m would be return {'time': 360, 'unit': m}
     def time_finder(self, time_):
         for unit in self.units.keys():
-            print(unit)
-            print(time_)
             if unit in time_:
                 time_ = time_.strip(unit)
                 try:
@@ -351,9 +349,8 @@ class TwitchBot(commands.Bot):
         target = self.target_finder(request)
 
         time_ = request.replace(f'@{target} ', '')
-        print(time_)
         time_ = time_.strip(' ')
-        print(time_)
+
 
         try:
             time_returned = self.time_finder(time_)

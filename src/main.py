@@ -10,7 +10,7 @@ from db_handler import DB
 from dotenv import load_dotenv
 from pathlib import Path
 from errors import *
-from audio_controller import AudioController
+from audio_controller import AudioController, Context
 
 
 def get_creds(log: Log):
@@ -64,30 +64,46 @@ def get_settings():
         return settings
 
 
-def start_twitch_bot(db_log: Log, creds: dict, settings: dict):
+def start_twitch_bot(db_log: Log, creds: dict, settings: dict, ctx: Context):
     twitch_log = Log('Twitch', bool(settings['log']))
     db = DB(db_log)
     s_bot = Spotify(creds['spotify username'],
                     creds['spotify client id'], creds['spotify secret'])
     db.check_user_exists(creds['twitch channel'].lower())
     db.admin_user(creds['twitch channel'].lower())
-    ac = AudioController(db, s_bot)
+    ac = AudioController(db, s_bot, ctx)
     t_bot = TwitchBot(creds['twitch token'],
                       creds['twitch channel'], twitch_log, db, ac)
     t_bot.run()
 
 
-def start_discord_bot(db_log: Log, creds: dict, settings: dict):
+def start_discord_bot(db_log: Log, creds: dict, settings: dict, ctx: Context):
     discord_log = Log('Discord', bool(settings['log']))
     db = DB(db_log)
     s_bot = Spotify(creds['spotify username'],
                     creds['spotify client id'], creds['spotify secret'])
     db.check_user_exists(creds['twitch channel'].lower())
     db.admin_user(creds['twitch channel'].lower())
-    ac = AudioController(db, s_bot)
+    ac = AudioController(db, s_bot, ctx)
     d_bot = DiscordBot(creds['discord leaderboard channel id'], creds['discord queue channel id'],
                        creds['twitch channel'], discord_log, s_bot, db, ac)
     d_bot.run(creds['discord token'])
+
+def check_if_discord(creds, log: Log):
+    if creds.get('discord token') is None:
+        log.info('Discord token not found, not starting Discord bot.')
+        return False
+    elif creds.get('discord leaderboard channel id') is None:
+        log.info('Discord leaderboard channel id not found, not starting Discord bot.')
+        return False
+    elif creds.get('discord queue channel id') is None:
+        log.info('Discord queue channel id not found, not starting Discord bot.')
+        return False
+    elif creds.get('discord leaderboard channel id') == creds.get('discord queue channel id'):
+        log.info('Discord leaderboard channel id and Discord queue channel id are the same, not starting Discord bot.')
+        return False
+    else:
+        return True
 
 
 def main():
@@ -97,13 +113,10 @@ def main():
     settings = get_settings()
 
     db_log = Log('Database', bool(settings['log']))
-
-    th.Thread(target=start_twitch_bot, args=[db_log, creds, settings]).run()
-
-    if bool(settings['discord bot']):
-        th.Thread(target=start_discord_bot, args=[
-                  db_log, creds, settings]).run()
-
+    ctx = Context()
+    if check_if_discord(creds, main_log):
+        th.Thread(target=start_discord_bot, args=(db_log, creds, settings, ctx), daemon=True).start()
+    start_twitch_bot(db_log, creds, settings, ctx)
 
 if __name__ == "__main__":
     main()

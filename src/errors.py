@@ -60,3 +60,10 @@ class DBError(Exception):
 
 class NoCurrentTrack(Exception):
     pass
+
+class WrongChannel(Exception):
+    pass
+
+class UserNotFound(Exception):
+    def __init__(self, user):
+        self.user = user

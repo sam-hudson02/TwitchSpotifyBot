@@ -11,7 +11,6 @@ class Timer:
     def __init__(self, timeout, callback):
         # convert milliseconds to seconds
         self._timeout = float(timeout / 1000)
-        print(self._timeout)
         self._callback = callback
         self._task = asyncio.ensure_future(self._job())
 
@@ -56,11 +55,13 @@ class Context:
                 'requester': self.requester, 'playback_id': self.playback_id, 'playing_queue': self.playing_queue}
 
 
+
 class AudioController:
-    def __init__(self, db: DB, spot: Spotify):
+    def __init__(self, db: DB, spot: Spotify, ctx: Context):
         self.db = db
         self.spot = spot
-        self.context = Context()
+        # Context is initialized in the main.py so that it can be shared between twitch_bot and discord_bot
+        self.context = ctx
         self.playlist = None
         self.next_timer = None
 

@@ -11,15 +11,6 @@ from audio_controller import AudioController
 from errors import *
 
 
-class WrongChannel(Exception):
-    pass
-
-
-class UserNotFound(Exception):
-    def __init__(self, user):
-        self.user = user
-
-
 class DiscordBot(commands.Bot):
     def __init__(self, leaderboard_channel_id, queue_channel_id, twitch_channel, log: Log,
                  spot: Spotify, db: DB, ac: AudioController):
@@ -93,7 +84,6 @@ class AutoUpdate(commands.Cog):
     def embed_queue(self):
         q = self.queue
         if len(q) > 0:
-            print(q)
             i = 1
             try:
                 current_track, current_artist = self.spot.get_current_track()
@@ -177,13 +167,13 @@ class AutoUpdate(commands.Cog):
 
         if not context['paused']:
             track_info = f'{context["track"]} - {context["artist"]}'
-            image = context['albumArt']
+            image = context['album_art']
             embed = discord.Embed(
                 title=f'Currently playing:', colour=discord.Colour.purple())
             embed.set_image(url=image)
             embed.add_field(name=track_info,
                             value='---------------', inline=False)
-            if context['playingQueue']:
+            if context['playing_queue']:
                 embed.set_footer(text=f'requested by {context["requester"]}')
 
         await self.queue_message_obj.edit(content=queue, embed=embed, view=None)
@@ -196,23 +186,26 @@ class AutoUpdate(commands.Cog):
         new_queue = self.db.get_queue()
 
         if new_queue != self.queue:
-            print(self.queue)
-            print(new_queue)
             self.queue = new_queue
-            print('updating queue')
+            self.log.info('updating queue')
             await self.update_playing()
 
     @tasks.loop(seconds=2)
     async def get_context(self):
-        try:
-            if self.queue_message_obj is None:
-                return None
-            if self.ac.context != self.context:
-                self.context = self.ac.context
-                print('updating playing')
-                await self.update_playing()
-        except json.decoder.JSONDecodeError as er:
-            self.log.error(er)
+        if self.queue_message_obj is None:
+            return None
+        ctx_loaded = self.ac.context.get_context()
+        new_ctx = {"paused": ctx_loaded["paused"],
+                    "track": ctx_loaded["track"],
+                    "artist": ctx_loaded["artist"],
+                    "album_art": ctx_loaded["album_art"],
+                    "requester": ctx_loaded["requester"],
+                    "playing_queue": ctx_loaded["playing_queue"]
+                    }
+        if new_ctx != self.context:
+            self.context = new_ctx
+            self.log.info('updating context')
+            await self.update_playing()
 
     @tasks.loop(seconds=2)
     async def get_leaderboard(self):
@@ -222,7 +215,7 @@ class AutoUpdate(commands.Cog):
         new_leaderboard = self.db.get_leaderboard()
         if new_leaderboard != self.leaderboard:
             self.leaderboard = new_leaderboard
-            print('updating leaderboard')
+            self.log.info('updating leaderboard')
             await self.update_leaderboard()
 
     async def update_leaderboard(self):
@@ -419,8 +412,6 @@ class Commands(commands.Cog):
 
     @queue.error
     async def cog_command_error(self, context: discord.Interaction, error) -> None:
-        print('check1')
-        print(type(error))
         error = error.__cause__
         if isinstance(error, commands.errors.CommandOnCooldown):
             resp = str(error)
@@ -438,7 +429,6 @@ class Commands(commands.Cog):
             self.log.resp(resp)
 
         elif isinstance(error, YoutubeLink):
-            print('yt link')
             resp = "Youtube support is coming soon!"
             await context.response.send_message(content=resp, ephemeral=True)
             self.log.resp(resp)
@@ -449,7 +439,6 @@ class Commands(commands.Cog):
             self.log.resp(resp)
 
         else:
-            print('er')
             traceback.print_exception(
                 type(error), error, error.__traceback__, file=sys.stderr)
             self.log.error(error)
