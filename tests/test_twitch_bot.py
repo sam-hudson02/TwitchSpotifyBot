@@ -1,12 +1,15 @@
 import unittest
-import src.db_handler as db_handler
-from src.logger import Log
 from dotenv import load_dotenv
 from pathlib import Path
 import os
-from src.errors import *
-from src.twitch_bot import TwitchBot
-from src.audio_controller import AudioController
+import sys
+path_src = os.path.abspath('./src')
+sys.path.insert(1, path_src)
+import db_handler as db_handler
+from logger import Log
+from errors import *
+from twitch_bot import TwitchBot
+from audio_controller import AudioController, Context
 from spotify_api import Spotify
 
 
@@ -38,7 +41,7 @@ creds = get_creds(logger)
 db = db_handler.DB(log=logger, db_path='./data/test.sqlite')
 
 ac = AudioController(db, Spotify(
-    creds['spotify username'], creds['spotify client id'], creds['spotify secret']))
+    creds['spotify username'], creds['spotify client id'], creds['spotify secret']), Context())
 
 tb = TwitchBot(creds['twitch token'], creds['twitch channel'], logger, db, ac)
 
@@ -75,7 +78,7 @@ class TestTwitchBot(unittest.TestCase):
         db.delete_user('rategiver')
         db.init_user('requester1', requests=1)
         db.init_user('rategiver')
-        song_context1 = {"playingQueue": True, "track": "track1",
+        song_context1 = {"playing_queue": True, "track": "track1",
                          "artist": "artist1", "requester": "requester1"}
         resp1 = tb.add_rate(song_context1, 'rategiver')
         self.assertEqual(
@@ -108,6 +111,8 @@ class TestTwitchBot(unittest.TestCase):
         self.assertTrue(tb.unban('tempmoduser', 'tempbanuser'))
         self.assertFalse(db.is_user_banned('tempbanuser'))
 
+    def tearDown(self) -> None:
+        db.delete_all()
 
 if __name__ == '__main__':
     unittest.main(verbosity=1)

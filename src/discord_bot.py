@@ -70,30 +70,22 @@ class AutoUpdate(commands.Cog):
 
     def embed_leaderboard(self):
         sorted_position, sorted_users, sorted_rates = self.db.get_leaderboard()
-        if len(sorted_users) > 0:
-            embed = discord.Embed(
+        embed = discord.Embed(
                 title=f'{self.twitch_channel} Song Request Leaderboard')
+        if len(sorted_users) > 0:
             embed.add_field(name='Position',
                             value=sorted_position, inline=True)
             embed.add_field(name='User', value=sorted_users, inline=True)
             embed.add_field(name='Rates', value=sorted_rates, inline=True)
-            return embed
         else:
-            return None
+            embed.add_field(name='Leaderboard is currently empty!',
+                            value='No has received any rates yet!')
+        return embed
 
     def embed_queue(self):
         q = self.queue
         if len(q) > 0:
             i = 1
-            try:
-                current_track, current_artist = self.spot.get_current_track()
-            except NoCurrentTrack:
-                current_track, current_artist = None, None
-
-            if current_track is None:
-                return f"{self.twitch_channel} Song Request Queue: \n" \
-                       f"```\nQueue is Currently Inactive!\n```"
-
             body = []
             header = ['Position', 'Track', 'Artist/s', 'Requester', 'id']
             for req in q[:5]:
@@ -102,12 +94,7 @@ class AutoUpdate(commands.Cog):
                 track = req[2]
                 artist = req[3]
                 user = req[4]
-                if track == current_track and artist == current_artist:
-                    body = []
-                    i = 1
-                    position = f'{pos} (currently playing)'
-                else:
-                    position = str(pos)
+                position = str(pos)
                 body.append([position, track, artist, user, req_id])
                 i += 1
 
@@ -165,7 +152,7 @@ class AutoUpdate(commands.Cog):
         if context is None:
             return
 
-        if not context['paused']:
+        if not context['paused'] and self.ac.context.active and self.ac.context.live:
             track_info = f'{context["track"]} - {context["artist"]}'
             image = context['album_art']
             embed = discord.Embed(
@@ -200,7 +187,9 @@ class AutoUpdate(commands.Cog):
                     "artist": ctx_loaded["artist"],
                     "album_art": ctx_loaded["album_art"],
                     "requester": ctx_loaded["requester"],
-                    "playing_queue": ctx_loaded["playing_queue"]
+                    "playing_queue": ctx_loaded["playing_queue"],
+                    "live": ctx_loaded["live"],
+                    "active": ctx_loaded["active"]
                     }
         if new_ctx != self.context:
             self.context = new_ctx

@@ -3,7 +3,6 @@ from db_handler import DB
 from errors import *
 from spotify_api import Spotify
 import asyncio
-import time
 
 
 # creates a timer that calls a function after given number of milliseconds
@@ -35,6 +34,8 @@ class Context:
         self.requester = None
         self.playback_id = None
         self.link = None
+        self.active = True
+        self.live = False
 
     def update(self, context: dict):
         if not self.playing_queue:
@@ -45,14 +46,16 @@ class Context:
         self.paused = context.get('paused', True)
         self.track = context.get('track', None)
         self.artist = context.get('artist', None)
-        if self.playback_id != context['playback_id']:
+        if self.playback_id != context.get('playback_id', None):
             self.requester = None
-        self.playback_id = context['playback_id']
+            self.playing_queue = False
+        self.playback_id = context.get('playback_id', None)
 
     def get_context(self):
         return {'playlist': self.playlist, 'progress': self.progress, 'duration': self.duration,
                 'album_art': self.album_art, 'paused': self.paused, 'track': self.track, 'artist': self.artist,
-                'requester': self.requester, 'playback_id': self.playback_id, 'playing_queue': self.playing_queue}
+                'requester': self.requester, 'playback_id': self.playback_id, 'playing_queue': self.playing_queue, 
+                'active': self.active, 'live': self.live}
 
 
 
@@ -149,6 +152,11 @@ class AudioController:
         return
 
     async def update_context(self):
+        if not self.context.active:
+            return
+        if not self.context.live:
+            return
+        
         new_context = self.spot.get_context()
         if new_context is not None:
             self.context.update(new_context)

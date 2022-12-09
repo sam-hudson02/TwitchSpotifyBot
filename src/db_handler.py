@@ -187,14 +187,18 @@ class DB:
     @error_handler
     def get_leaderboard(self):
 
-        sql = f"SELECT username, rates FROM {self.user_tb} ORDER BY rates DESC"
+        sql = f"SELECT username, rates FROM {self.user_tb} WHERE rates > 0 ORDER BY rates DESC"
         self.cursor.execute(sql)
         results = self.cursor.fetchall()
+        return self.format_user_results(results)
+
+    @error_handler
+    def format_user_results(self, results, limit=50):
         sorted_users = []
         sorted_rates = []
         sorted_position = []
         i = 1
-        for res in results:
+        for res in results[:limit]:
             sorted_position.append(str(i))
             sorted_users.append(str(res[0]))
             sorted_rates.append(str(res[1]))
@@ -202,7 +206,11 @@ class DB:
         sorted_position = ' \n '.join(sorted_position)
         sorted_users = ' \n '.join(sorted_users)
         sorted_rates = ' \n '.join(sorted_rates)
-        return sorted_position, sorted_users, sorted_rates
+        if len(sorted_users) > 1024:
+            return self.format_user_results(results, limit=limit - 5)
+        else:
+            return sorted_position, sorted_users, sorted_rates
+
 
     @error_handler
     def add_to_queue(self, requester: str, track: str, link, artist: str = 'na', pos: int = None):

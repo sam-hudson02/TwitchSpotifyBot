@@ -22,32 +22,36 @@ class TwitchBot(commands.Bot):
         self.units_full = {'s': 'seconds',
                            'm': 'minutes', 'h': 'hours', 'd': 'days'}
         self.units = {'s': 1, 'm': 60, 'h': 3600, 'd': 8}
-        self.is_live = True
+        self.is_live = False
         self.settings = self.pull_settings()
+        if self.settings is None:
+            self.active = True
+        else:
+            self.active = bool(self.settings['active'])
+        self.ac.context.active = self.active
         self.log = log
         self.channel_name = twitch_channel
         self.channel_obj = None
         self.user_cache = self.db.get_all_users()
-        self.context_path = './data/context.json'
-
-    # creates routine to update settings every 30 secs from settings file
-    @routines.routine(seconds=30)
-    async def auto_update_settings(self):
-        settings = self.pull_settings()
-        if settings is not None:
-            self.settings = settings
 
     @routines.routine(seconds=3)
     async def update_song_context(self):
+        if self.settings is None:
+            self.settings = self.pull_settings()
+            return
+        if not self.is_live:
+            return
+        if not self.active:
+            return
         await self.ac.update_context()
 
-    @staticmethod
-    def pull_settings():
+    def pull_settings(self):
         with open('./data/settings.json') as s_file:
             try:
                 return json.load(s_file)
             except json.decoder.JSONDecodeError:
-                return None
+                self.log.error('Error loading settings.json')
+                return {}
 
     def check_user(self, user):
         if user in self.user_cache:
@@ -60,17 +64,25 @@ class TwitchBot(commands.Bot):
     # creates routine to check if channel is live every 15 seconds
     @routines.routine(seconds=15)
     async def check_live(self):
-        if not bool(self.settings['dev mode']):
-            data = await self.fetch_channel(self.channel_name)
-            if data is None:
-                self.is_live = False
-            else:
-                self.is_live = True
+        if self.settings is None:
+            self.settings = self.pull_settings()
+            return
+
+        if self.channel_obj is None:
+            return
+
+        if bool(self.settings['dev mode']):
+            self.set_live(True)
+            return
+
+        data = await self.fetch_streams([self.channel_obj.name])
+        if len(data) == 0:
+            self.set_live(False)
         else:
-            self.is_live = True
+            self.set_live(True)
 
     def dump_settings(self):
-        with open(self.context_path, 'w') as s:
+        with open('./data/settings.json', 'w') as s:
             json.dump(self.settings, s)
             s.close()
 
@@ -114,7 +126,6 @@ class TwitchBot(commands.Bot):
         await channel.send(f'Sbotify is now online!')
         self.log.info(f'Bot joined {channel.name}')
         self.channel_obj = channel
-        self.auto_update_settings.start()
         self.check_live.start()
         self.update_song_context.start()
 
@@ -211,6 +222,15 @@ class TwitchBot(commands.Bot):
         request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
         self.log.req(user, request, ctx.command.name)
 
+        if not self.active:
+            raise NotActive
+        
+        if not self.is_live:
+            resp = f'Song request are currently turned off. ({self.channel_name} not live)'
+            await ctx.reply(resp)
+            self.log.resp(resp)
+            return False
+        
         if self.db.is_user_banned(user):
             raise UserBanned
 
@@ -220,18 +240,27 @@ class TwitchBot(commands.Bot):
             resp = f'Your request could not be found on spotify'
             await ctx.reply(resp)
             self.log.resp(resp)
-            return None
+            return False
         else:
             resp = f'{track} by {artist} has been added to the queue!'
             await ctx.reply(resp)
             self.log.resp(resp)
             self.db.add_requests(user)
+            return True
 
     @commands.command(name='skip')
     async def skip(self, ctx: commands.Context):
         user = ctx.author.name.lower()
         self.check_user(user)
 
+        if not self.active:
+            raise NotActive
+        if not self.is_live:
+            resp = f'Song request are currently turned off. ({self.channel_name} not live)'
+            await ctx.reply(resp)
+            self.log.resp(resp)
+            return False
+        
         request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
         self.log.req(user, request, str(ctx.command.name))
         if self.db.is_user_privileged(user):
@@ -256,7 +285,7 @@ class TwitchBot(commands.Bot):
 
         if self.db.is_user_admin(user):
             self.db.mod_user(target)
-            resp = f'@{target} is now a mod! Type !sp_help to see all the available commands!'
+            resp = f'@{target} is now a mod! Type !sp-help to see all the available commands!'
             await ctx.reply(resp)
             self.log.resp(resp)
         else:
@@ -378,15 +407,15 @@ class TwitchBot(commands.Bot):
 
         self.log.req(user, request, ctx.command.name)
 
-        if not bool(self.settings['active']):
+        if not self.active:
             if self.db.is_user_privileged(user):
-                self.settings['active'] = 1
+                self.set_active(True)
                 resp = 'Song request have been turned on!'
                 await ctx.reply(resp)
                 self.log.resp(resp)
             else:
                 raise NotAuthorized('mod/admin')
-        elif bool(self.is_live):
+        elif self.is_live:
             resp = f"Song request are already turned on but won't be taken till {self.channel_name} is live."
             await ctx.reply(resp)
             self.log.resp(resp)
@@ -404,9 +433,9 @@ class TwitchBot(commands.Bot):
 
         self.log.req(user, request, ctx.command.name)
 
-        if bool(self.settings['active']):
+        if self.active:
             if self.db.is_user_privileged(user):
-                self.settings['active'] = 1
+                self.set_active(False)
                 resp = 'Song request have been turned off!'
                 await ctx.reply(resp)
                 self.log.resp(resp)
@@ -430,7 +459,7 @@ class TwitchBot(commands.Bot):
             if self.is_live:
                 resp = 'Song request are turned on!'
             else:
-                resp = f"Song request are already turned on but won't be taken till {self.channel_name} is live."
+                resp = f"Song request are turned on but won't be taken till {self.channel_name} is live."
         else:
             resp = f'Song request are turned off.'
 
@@ -475,6 +504,9 @@ class TwitchBot(commands.Bot):
             self.ac.skip()
 
     def add_veto(self, song_context, user):
+        if song_context is None:
+            return None
+            
         if (song_context['track'], song_context['artist']) != (self.veto_votes['track'], self.veto_votes['artist']):
             self.veto_votes['track'] = song_context['track']
             self.veto_votes['artist'] = song_context['artist']
@@ -508,7 +540,10 @@ class TwitchBot(commands.Bot):
             self.log.resp(resp)
 
     def add_rate(self, song_context, rater):
-        if not song_context['playingQueue']:
+        if song_context is None:
+            return None
+
+        if not song_context['playing_queue']:
             return None
 
         # keeps record what user have rated current track so users can't rate current more than once
@@ -539,3 +574,39 @@ class TwitchBot(commands.Bot):
         resp = "Here is a full list of commands: https://pastebin.com/vZ4bNiTn"
         await ctx.reply(resp)
         self.log.resp(resp)
+    
+    @commands.command(name='sp-set-veto-pass')
+    async def set_veto_pass(self, ctx: commands.Context):
+        user = ctx.author.name.lower()
+        self.check_user(user)
+
+        request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
+
+        self.log.req(user, request, ctx.command.name)
+
+        if not self.db.is_user_privileged(user):
+            raise NotAuthorized('mod/admin')
+
+        try:
+            new_veto_pass = int(request)
+            if new_veto_pass < 2:
+                resp = f'Veto pass must be at least 2'
+            else:
+                self.settings['veto pass'] = int(request)
+                self.dump_settings()
+                resp = f'Veto pass has been set to {new_veto_pass}'
+        except ValueError:
+            resp = f'Could not find a number in your command'
+        await ctx.reply(resp)
+        self.log.resp(resp)
+    
+    def set_active(self, active: bool):
+        self.active = active
+        self.ac.context.active = active
+
+    def set_live(self, live: bool):
+        self.is_live = live
+        self.ac.context.live = live
+
+    # TODO: add pause and resume commands
+    
