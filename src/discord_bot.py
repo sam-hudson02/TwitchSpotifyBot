@@ -159,7 +159,7 @@ class AutoUpdate(commands.Cog):
                 title=f'Currently playing:', colour=discord.Colour.purple())
             embed.set_image(url=image)
             embed.add_field(name=track_info,
-                            value='---------------', inline=False)
+                            value='----------------------------------------------------', inline=False)
             if context['playing_queue']:
                 embed.set_footer(text=f'requested by {context["requester"]}')
 
