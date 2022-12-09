@@ -22,6 +22,7 @@ class Server:
         if not os.path.exists('./data/sbotify.log'):
             with open('./data/sbotify.log', 'w') as f:
                 f.close()
+        bot.get_settings()
         self.log = Log('Server')
         self.creds = bot.get_creds(self.log)
         self.user = self.creds['spotify username']
@@ -38,9 +39,12 @@ class Server:
         self.process = None
 
     def redirect_to_spotify(self):
+        self.log.info("Checking if bot is running...")
         if self.bot_running:
+            self.log.info("Bot is running, redirecting to bot running page.")
             return flask.render_template("bot_running.html")
         else:
+            self.log.info("Bot is not running, redirecting to spotify login.")
             redirect = request.base_url + "spotify-redirect"
             self.spot_oath = spotipy.SpotifyOAuth(client_id=self.creds["spotify client id"], client_secret=self.creds["spotify secret"], 
                                                   redirect_uri=redirect, open_browser=False, scope=self.scopes, cache_handler=self.cache)
@@ -48,21 +52,25 @@ class Server:
     
     
     def spotify_callback(self):
-        print(request.url)
+        if self.bot_running:
+            return flask.redirect("/")
+        self.log.info("Spotify callback received.")
         code = self.spot_oath.parse_response_code(request.url)
-        print(code)
         self.spot_oath.get_access_token(code)
-        print(self.bot_running)
+        self.log.info("Spotify login successful, starting bot.")
         if not self.bot_running:
             th.Timer(1, self.start_bots).start()
             self.bot_running = True
         return flask.render_template("bot_running.html")
     
     def start_bots(self):
-        try:
-            call(["python3", "src/main.py"])
-        except FileNotFoundError:
+        # check if running on windows or linux
+        if os.name == 'nt':
+            self.log.info("Windows detected, starting bot with python")
             call(["python", "src/main.py"])
+        else:
+            self.log.info("Linux detected, starting bot with python3")
+            call(["python3", "src/main.py"])
     
     def run(self):
         app.run(host='0.0.0.0', port=5000)
