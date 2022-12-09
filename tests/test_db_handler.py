@@ -97,7 +97,19 @@ class TestDbHandler(unittest.TestCase):
         db.clear_queue()
         self.assertEqual([], db.get_queue())
         self.assertIsNone(db.get_req_id_by_track_name('NotATrack'))
-
+    
+    def test_db_leaderboard(self):
+        for i in range(100):
+            db.init_user(f'dbleaderboarduser{i}', rates=i)
+        _, sorted_users, sorted_rates = db.get_leaderboard()
+        self.assertLessEqual(len(sorted_users), 1024)
+        rates_list = sorted_rates.split('\n ')
+        for rate in rates_list:
+            self.assertGreater(int(rate), 0)
+        user_list = sorted_users.split('\n ')
+        self.assertEqual(len(user_list), len(rates_list))
+        self.assertEqual(user_list[0], 'dbleaderboarduser99 ')
+    
     def tearDown(self) -> None:
         db.delete_all()
 

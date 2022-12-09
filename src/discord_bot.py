@@ -85,15 +85,6 @@ class AutoUpdate(commands.Cog):
         q = self.queue
         if len(q) > 0:
             i = 1
-            try:
-                current_track, current_artist = self.spot.get_current_track()
-            except NoCurrentTrack:
-                current_track, current_artist = None, None
-
-            if current_track is None:
-                return f"{self.twitch_channel} Song Request Queue: \n" \
-                       f"```\nQueue is Currently Inactive!\n```"
-
             body = []
             header = ['Position', 'Track', 'Artist/s', 'Requester', 'id']
             for req in q[:5]:
@@ -102,12 +93,7 @@ class AutoUpdate(commands.Cog):
                 track = req[2]
                 artist = req[3]
                 user = req[4]
-                if track == current_track and artist == current_artist:
-                    body = []
-                    i = 1
-                    position = f'{pos} (currently playing)'
-                else:
-                    position = str(pos)
+                position = str(pos)
                 body.append([position, track, artist, user, req_id])
                 i += 1
 
