@@ -45,9 +45,9 @@ class Context:
         self.paused = context.get('paused', True)
         self.track = context.get('track', None)
         self.artist = context.get('artist', None)
-        if self.playback_id != context['playback_id']:
+        if self.playback_id != context.get('playback_id', None):
             self.requester = None
-        self.playback_id = context['playback_id']
+        self.playback_id = context.get('playback_id', None)
 
     def get_context(self):
         return {'playlist': self.playlist, 'progress': self.progress, 'duration': self.duration,

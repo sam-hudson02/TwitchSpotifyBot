@@ -220,12 +220,13 @@ class TwitchBot(commands.Bot):
             resp = f'Your request could not be found on spotify'
             await ctx.reply(resp)
             self.log.resp(resp)
-            return None
+            return False
         else:
             resp = f'{track} by {artist} has been added to the queue!'
             await ctx.reply(resp)
             self.log.resp(resp)
             self.db.add_requests(user)
+            return True
 
     @commands.command(name='skip')
     async def skip(self, ctx: commands.Context):
@@ -475,6 +476,9 @@ class TwitchBot(commands.Bot):
             self.ac.skip()
 
     def add_veto(self, song_context, user):
+        if song_context is None:
+            return None
+            
         if (song_context['track'], song_context['artist']) != (self.veto_votes['track'], self.veto_votes['artist']):
             self.veto_votes['track'] = song_context['track']
             self.veto_votes['artist'] = song_context['artist']
@@ -508,7 +512,10 @@ class TwitchBot(commands.Bot):
             self.log.resp(resp)
 
     def add_rate(self, song_context, rater):
-        if not song_context['playingQueue']:
+        if song_context is None:
+            return None
+
+        if not song_context['playing_queue']:
             return None
 
         # keeps record what user have rated current track so users can't rate current more than once
