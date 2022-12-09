@@ -1,7 +1,11 @@
 import unittest
-import src.db_handler as db_handler
-from src.logger import Log
-from src.errors import *
+import os
+import sys
+path_src = os.path.abspath('./src')
+sys.path.insert(1, path_src)
+import db_handler as db_handler
+from logger import Log
+from errors import *
 
 logger = Log('test', True, False)
 db = db_handler.DB(log=logger, db_path='./data/test.sqlite')
@@ -94,6 +98,8 @@ class TestDbHandler(unittest.TestCase):
         self.assertEqual([], db.get_queue())
         self.assertIsNone(db.get_req_id_by_track_name('NotATrack'))
 
+    def tearDown(self) -> None:
+        db.delete_all()
 
 if __name__ == '__main__':
     unittest.main(verbosity=1)
