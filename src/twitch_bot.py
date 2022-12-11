@@ -4,7 +4,9 @@ import sys
 import asyncio
 import threading as th
 import twitchio
-import requests
+import random
+import string
+import time
 from twitchio.ext import commands, routines
 from logger import Log
 from db_handler import DB
@@ -609,4 +611,45 @@ class TwitchBot(commands.Bot):
         self.ac.context.live = live
 
     # TODO: add pause and resume commands
-    
+    # get random song from spotify
+    @commands.command(name='sp-random')
+    async def queue_random_song(self, ctx: commands.Context):
+
+        user = ctx.author.name.lower()
+        request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
+        self.log.req(user, request, ctx.command.name)
+
+        if not self.settings['dev mode']:
+            resp = f'Random song queueing is currently disabled (not in dev mode)'
+
+        elif not self.db.is_user_admin(user):
+            raise NotAuthorized('admin')
+
+        else:
+            request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
+            try:
+                num = int(request)
+                if num > 25:
+                    num = 25
+            except ValueError:
+                num = 1
+
+            letter = random.choice(string.ascii_lowercase)
+            results = self.ac.spot.sp.search(q=letter, type='playlist', limit=50)
+            playlist = random.choice(results['playlists']['items'])
+
+            # get random song from playlist
+            results = self.ac.spot.sp.playlist_items(playlist['uri'], limit=100)
+            numbers = list(range(len(results['items'])))
+            for _ in range(num):
+                time.sleep(10)
+                song_index = random.choice(numbers)
+                song = results['items'][song_index]
+                numbers.remove(song_index)
+
+                self.ac.add_to_queue(song['track']['uri'], user=user)
+
+            resp = f'Finished adding {num} random track the queue!'
+        
+        await ctx.reply(resp)
+        self.log.resp(resp)
