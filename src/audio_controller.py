@@ -3,11 +3,12 @@ from db_handler import DB
 from errors import *
 from spotify_api import Spotify
 import asyncio
+import time
 
 
 # creates a timer that calls a function after given number of milliseconds
 class Timer:
-    def __init__(self, timeout, callback):
+    def __init__(self, timeout: int, callback: callable):
         # convert milliseconds to seconds
         self._timeout = float(timeout / 1000)
         self._callback = callback
@@ -67,15 +68,29 @@ class AudioController:
         self.context = ctx
         self.playlist = None
         self.next_timer = None
+        self.timer_started = None
+        self.context_time = None
 
     def add_to_queue(self, request: str, user: str):
 
         # deals with spotify request with link in request
-        if 'open.spotify' in request:
+        if 'open.spotify.com/track' in request:
             request = request.split(' ')
             link = None
             for word in request:
                 if 'http' in word:
+                    link = word
+                    link = link.strip('\r')
+                    link = link.strip('\n')
+            if link is None:
+                raise TrackNotFound
+            track, artist, link = self.spot.get_track_info(url=link)
+
+        if 'spotify:track:' in request:
+            request = request.split(' ')
+            link = None
+            for word in request:
+                if 'spotify:track:' in word:
                     link = word
                     link = link.strip('\r')
                     link = link.strip('\n')
@@ -114,17 +129,19 @@ class AudioController:
         if self.context.track is None:
             return
 
-        time_left = self.context.duration - self.context.progress
+        time_since_context_update = time.time() * 1000 - self.context_time
+        time_left = self.context.duration - (self.context.progress + time_since_context_update)
 
-        if time_left <= 4000 and time_left > 500:
+        if time_left <= 5000 and time_left > 1500:
             if self.next_timer is not None:
                 self.next_timer.cancel()
-            self.next_timer = Timer(time_left - 500, self.play_next)
+            self.next_timer = Timer(time_left - 1000, self.play_next)
         return
 
     async def play_next(self, skipped: bool = False):
         # check if any songs are in queue
         queue = self.db.get_queue()
+        
         if len(queue) > 0:
             # get next song in queue
             next_song = queue[0]
@@ -156,7 +173,7 @@ class AudioController:
             return
         if not self.context.live:
             return
-        
+        self.context_time = time.time() * 1000
         new_context = self.spot.get_context()
         if new_context is not None:
             self.context.update(new_context)
