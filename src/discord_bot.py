@@ -35,14 +35,16 @@ class DiscordBot(commands.Bot):
 
     async def on_shard_resumed(self, shard_id):
         cog = self.get_cog('AutoUpdate')
-        if cog is not None:
-            await self.remove_cog('AutoUpdate')
         leaderboard_channel = self.get_channel(self.leaderboard_channel_id)
         queue_channel = self.get_channel(self.queue_channel_id)
-        await self.add_cog(AutoUpdate(leaderboard_channel, queue_channel, self.twitch_channel,
-                                      self, self.db, self.ac))
-        self.log.info(f'{shard_id} shard resumed.')
-        self.log.info('AutoUpdate has been restarted')
+        if cog is not None:
+            await self.remove_cog('AutoUpdate')
+            await self.add_cog(AutoUpdate(leaderboard_channel, queue_channel, self.twitch_channel,
+                                          self, self.db, self.ac))
+        else:
+            await self.bot.add_cog(AutoUpdate(leaderboard_channel, leaderboard_channel,
+                                              self.twitch_channel, self.bot, self.db, self.ac))
+        self.log.info(f'Shard {shard_id} resumed, restarting AutoUpdate cog.')
 
 
 class AutoUpdate(commands.Cog):
@@ -67,7 +69,7 @@ class AutoUpdate(commands.Cog):
         self.get_leaderboard.start()
         self.get_queue.start()
         self.get_context.start()
-
+    
     def embed_leaderboard(self):
         sorted_position, sorted_users, sorted_rates = self.db.get_leaderboard()
         embed = discord.Embed(
@@ -207,6 +209,20 @@ class AutoUpdate(commands.Cog):
             self.log.info('updating leaderboard')
             await self.update_leaderboard()
 
+    @get_leaderboard.error
+    @get_queue.error
+    @get_context.error
+    async def task_error_handler(self, error):
+        if isinstance(error, discord.errors.DiscordServerError):
+            self.log.error(f'discord server error: {error}')
+        elif isinstance(error, discord.errors.NotFound):
+            self.log.error(f'Message object not found, restarting cog')
+            await self.restart_cog()
+        else:
+            self.log.error(f'Unexpected error: {error}')
+            raise error
+            
+
     async def update_leaderboard(self):
         if self.leaderboard_message_obj is None:
             return None
@@ -239,15 +255,18 @@ class AutoUpdate(commands.Cog):
     async def auto_update_restart(self, interaction: discord.Interaction):
         self.log.req(interaction.user, '', interaction.command.name)
         cog = self.bot.get_cog('AutoUpdate')
+        await self.restart_cog()
+        await interaction.response.send_message(content=f'AutoUpdate has been started!', ephemeral=True)
+
+    async def restart_cog(self):
+        cog = self.bot.get_cog('AutoUpdate')
         if cog is not None:
             await self.bot.remove_cog('AutoUpdate')
             await self.bot.add_cog(AutoUpdate(self.leaderboard_channel, self.queue_channel,
                                               self.twitch_channel, self.bot, self.db, self.ac))
-            await interaction.response.send_message(content=f'AutoUpdate has been restarted!', ephemeral=True)
         else:
             await self.bot.add_cog(AutoUpdate(self.leaderboard_channel, self.queue_channel,
                                               self.twitch_channel, self.bot, self.db, self.ac))
-            await interaction.response.send_message(content=f'AutoUpdate has been started!', ephemeral=True)
 
 
 class Commands(commands.Cog):
