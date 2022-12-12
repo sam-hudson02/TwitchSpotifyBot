@@ -625,8 +625,10 @@ class TwitchBot(commands.Bot):
         elif not self.db.is_user_admin(user):
             raise NotAuthorized('admin')
 
+        request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
+        if request == '':
+            num = 1
         else:
-            request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
             try:
                 num = int(request)
                 if num > 25:
@@ -634,13 +636,31 @@ class TwitchBot(commands.Bot):
             except ValueError:
                 num = 1
 
-            letter = random.choice(string.ascii_lowercase)
-            results = self.ac.spot.sp.search(q=letter, type='playlist', limit=50)
-            playlist = random.choice(results['playlists']['items'])
+        letter = random.choice(string.ascii_lowercase)
+        results = self.ac.spot.sp.search(q=letter, type='playlist', limit=50)
+        playlist = random.choice(results['playlists']['items'])
 
-            # get random song from playlist
-            results = self.ac.spot.sp.playlist_items(playlist['uri'], limit=100)
-            numbers = list(range(len(results['items'])))
+        # get random song from playlist
+        results = self.ac.spot.sp.playlist_items(playlist['uri'], limit=100)
+        
+
+        resp = f'Adding {num} random tracks to the queue...!'
+        await ctx.reply(resp)
+        self.log.resp(resp)
+        await self.add_randoms_to_queue(num, results, user)
+        return
+
+        
+
+    async def add_randoms_to_queue(self, num, results, user):
+
+        numbers = list(range(len(results['items'])))
+
+        if num == 1:
+            # select random songs from playlist
+            song = random.choice(results['items'])
+            self.ac.add_to_queue(song['track']['uri'], user=user)
+        else:
             for _ in range(num):
                 time.sleep(10)
                 song_index = random.choice(numbers)
@@ -648,8 +668,3 @@ class TwitchBot(commands.Bot):
                 numbers.remove(song_index)
 
                 self.ac.add_to_queue(song['track']['uri'], user=user)
-
-            resp = f'Finished adding {num} random track the queue!'
-        
-        await ctx.reply(resp)
-        self.log.resp(resp)
