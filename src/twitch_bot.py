@@ -463,7 +463,7 @@ class TwitchBot(commands.Bot):
 
         self.log.req(user, request, ctx.command.name)
 
-        if bool(self.settings['active']):
+        if self.active:
             if self.is_live:
                 resp = 'Song request are turned on!'
             else:
