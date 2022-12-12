@@ -1,7 +1,7 @@
 FROM ubuntu:latest
 
 RUN apt-get update
-RUN apt install --no-install-recommends -y python3-pip 
+RUN apt install -y python3-pip
 RUN apt-get clean
 
 RUN mkdir /Sbotify
