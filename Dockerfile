@@ -1,7 +1,7 @@
 FROM ubuntu:latest
 
 RUN apt-get update
-RUN apt-get install -y python3-pip 
+RUN apt-get install --no-install-recommends -y python3.10 python3-pip python3-wheel build-essential
 RUN apt-get clean
 
 RUN mkdir /Sbotify
