@@ -128,9 +128,15 @@ class TwitchBot(commands.Bot):
         await channel.send(f'Sbotify is now online!')
         self.log.info(f'Bot joined {channel.name}')
         self.channel_obj = channel
-        self.check_live.start()
-        self.update_song_context.start()
-
+        try:
+            self.update_song_context.start()
+        except RuntimeError:
+            self.update_song_context.restart()
+        try:
+            self.check_live.start()
+        except RuntimeError:
+            self.check_live.restart()
+       
     async def event_error(self, error: Exception, data: str = None):
         self.log.error(str(error))
 

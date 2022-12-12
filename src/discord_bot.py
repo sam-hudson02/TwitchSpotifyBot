@@ -1,7 +1,7 @@
 import discord
 import sys
 import traceback
-import json
+import time
 from logger import Log
 from spotify_api import Spotify
 from db_handler import DB
@@ -32,20 +32,25 @@ class DiscordBot(commands.Bot):
                                       self, self.db, self.ac))
         synced = await self.tree.sync()
         self.log.info(f'synced {len(synced)} commands')
-
-    async def on_shard_resumed(self, shard_id):
-        cog = self.get_cog('AutoUpdate')
-        leaderboard_channel = self.get_channel(self.leaderboard_channel_id)
-        queue_channel = self.get_channel(self.queue_channel_id)
-        if cog is not None:
-            await self.remove_cog('AutoUpdate')
-            await self.add_cog(AutoUpdate(leaderboard_channel, queue_channel, self.twitch_channel,
-                                          self, self.db, self.ac))
-        else:
-            await self.bot.add_cog(AutoUpdate(leaderboard_channel, leaderboard_channel,
-                                              self.twitch_channel, self.bot, self.db, self.ac))
-        self.log.info(f'Shard {shard_id} resumed, restarting AutoUpdate cog.')
-
+    
+    async def on_disconnect(self):
+        self.log.info('Bot disconnected.')
+        while self.is_closed():
+            time.sleep(5)
+            self.log.info('Bot attempting reconnecting.')
+        if not self.is_closed():
+            self.log.info('Bot reconnected.')
+            cog = self.get_cog('AutoUpdate')
+            print(cog)
+            leaderboard_channel = self.get_channel(self.leaderboard_channel_id)
+            queue_channel = self.get_channel(self.queue_channel_id)
+            if cog is not None:
+                await self.remove_cog('AutoUpdate')
+                await self.add_cog(AutoUpdate(leaderboard_channel, queue_channel, self.twitch_channel,
+                                            self, self.db, self.ac))
+            else:
+                await self.bot.add_cog(AutoUpdate(leaderboard_channel, leaderboard_channel,
+                                                self.twitch_channel, self.bot, self.db, self.ac))
 
 class AutoUpdate(commands.Cog):
     def __init__(self, leaderboard_channel, queue_channel, twitch_channel, bot: DiscordBot, db: DB,
@@ -112,6 +117,7 @@ class AutoUpdate(commands.Cog):
             return 'Problem with queue :/'
 
     async def cog_unload(self) -> None:
+        self.get_leaderboard.cancel()
         self.get_context.cancel()
         self.get_queue.cancel()
 
