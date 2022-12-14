@@ -4,3 +4,4 @@ table2ascii~=0.5.0
 discord.py~=2.0.1
 twitchio~=2.5.0
 python-dotenv~=0.21.0
+flask~=2.2.2

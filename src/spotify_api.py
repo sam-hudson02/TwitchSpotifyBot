@@ -156,6 +156,9 @@ class Spotify:
             artists = artists.strip("'")
             artists = artists.replace("'", '')
             image = info['item']['album']['images'][1]['url']
+            artist_profile = self.sp.artist(
+                info['item']['album']['artists'][0]['external_urls']['spotify'])
+            artist_image = artist_profile['images'][0]['url']
             prog = info['progress_ms']
             length = info['item']['duration_ms']
             track_id = info['item']['id']
@@ -163,6 +166,7 @@ class Spotify:
                 paused = False
             else:
                 paused = True
+            timestamp = info['timestamp']
             try:
                 playlist = info['context']['external_urls']['spotify']
             except TypeError:

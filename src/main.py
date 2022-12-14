@@ -14,6 +14,8 @@ from audio_controller import AudioController, Context
 
 
 def get_creds(log: Log):
+    if not exists('./secret'):
+        os.mkdir('./secret')
     env_path = Path('./secret/conf.env')
     load_dotenv(env_path)
     creds = {
