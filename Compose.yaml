@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  sbotify:
+    image: samhudson02/sbotify:0.31
+    restart: always
+    ports:
+      - "5000:5000"
+    volumes:
+      - /path/to/your/file:/Sbotify/data
+    environment:
+      - SPOTIFY_CLIENT_ID=Your spotify client ID here
+      - SPOTIFY_SECRET=Your spotify secret here
+      - SPOTIFY_USERNAME=Your spotify username here
+      - TWITCH_TOKEN=Your twitch token here
+      - TWITCH_CHANNEL=Your twitch channel here
+      - DISCORD_TOKEN=Optional discord token here
+      - DISCORD_LEADERBOARD_CHANNEL_ID=Optional leaderboard ID here
+      - DISCORD_QUEUE_CHANNEL_ID=Optional queue ID here
