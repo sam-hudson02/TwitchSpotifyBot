@@ -120,14 +120,8 @@ class TwitchBot(commands.Bot):
         except ValueError:
             raise TimeNotFound
         return {'time': time_, 'unit': unit}
-
-    async def event_ready(self):
-        self.log.info('Bot is ready')
-
-    async def event_channel_joined(self, channel: twitchio.Channel):
-        await channel.send(f'Sbotify is now online!')
-        self.log.info(f'Bot joined {channel.name}')
-        self.channel_obj = channel
+    
+    async def routine_init(self):
         try:
             self.update_song_context.start()
         except RuntimeError:
@@ -136,6 +130,21 @@ class TwitchBot(commands.Bot):
             self.check_live.start()
         except RuntimeError:
             self.check_live.restart()
+
+    async def event_ready(self):
+        self.log.info('Bot is ready')
+
+    async def event_reconnect(self):
+        self.log.info('Bot reconnected')
+        self.log.info('Restarting routines')
+        await self.routine_init()
+
+
+    async def event_channel_joined(self, channel: twitchio.Channel):
+        await channel.send(f'Sbotify is now online!')
+        self.log.info(f'Bot joined {channel.name}')
+        self.channel_obj = channel
+        await self.routine_init()
        
     async def event_error(self, error: Exception, data: str = None):
         self.log.error(str(error))
