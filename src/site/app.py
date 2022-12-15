@@ -22,8 +22,11 @@ class Server:
         if not os.path.exists('./data/sbotify.log'):
             with open('./data/sbotify.log', 'w') as f:
                 f.close()
+        if not os.path.exists('./data/server.log'):
+            with open('./data/server.log', 'w') as f:
+                f.close()
         bot.get_settings()
-        self.log = Log('Server')
+        self.log = Log('Server', log_active=True, file='./data/server.log')
         self.creds = bot.get_creds(self.log)
         self.user = self.creds['spotify username']
         self.cache_path = os.path.abspath(f'./secret/.cache-{self.user}')
@@ -31,8 +34,22 @@ class Server:
         if not os.path.exists(self.cache_path):
             with open(self.cache_path, 'w') as f:
                 json.dump({}, f)
+                self.spot_creds_cached = False
                 f.close()
-                
+        else:
+            with open(self.cache_path, 'r') as f:
+                data = json.load(f)
+                token = data.get('access_token')
+                refresh = data.get('refresh_token')
+                if token is not None and refresh is not None:
+                    self.spot_creds_cached = True
+                else:
+                    self.spot_creds_cached = False
+                del data
+                del token
+                del refresh
+                f.close()
+
         self.cache = spotipy.oauth2.CacheFileHandler(cache_path=self.cache_path, username=self.user)
         self.scopes = 'user-modify-playback-state user-read-playback-state user-read-currently-playing ' \
                       'user-read-playback-position user-read-recently-played streaming'
@@ -43,6 +60,10 @@ class Server:
         self.log.info("Checking if bot is running...")
         if self.bot_running():
             self.log.info("Bot is running, redirecting to bot running page.")
+            return flask.render_template("bot_running.html")
+        elif self.spot_creds_cached:
+            self.log.info("Bot is not running, but spotify creds are cached, starting bot...")
+            th.Timer(1, self.start_bots).start()
             return flask.render_template("bot_running.html")
         else:
             self.log.info("Bot is not running, redirecting to spotify login.")
