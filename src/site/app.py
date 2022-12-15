@@ -10,7 +10,6 @@ import main as bot
 from logger import Log
 from subprocess import Popen
 import json
-import psutil
 
 static_folder = os.path.abspath('./src/site/static')
 app = Flask(__name__)
@@ -97,10 +96,7 @@ class Server:
     def bot_running(self):
         if self.proc is None:
             return False
-        elif psutil.pid_exists(self.proc.pid):
-            return True
-        else:
-            return False
+        return self.proc.poll() is None
 
     def bot_check(self):
         if self.bot_running():
