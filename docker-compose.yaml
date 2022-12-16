@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   sbotify:
-    image: samhudson02/sbotify:0.31
+    image: samhudson02/sbotify:latest
     restart: always
     ports:
       - "5000:5000"
