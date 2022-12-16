@@ -77,7 +77,7 @@ class TwitchBot(commands.Bot):
             self.set_live(True)
             return
 
-        data = await self.fetch_streams([self.channel_obj.name])
+        data = await self.fetch_streams([self.channel_obj.id])
         if len(data) == 0:
             self.set_live(False)
         else:
@@ -143,7 +143,7 @@ class TwitchBot(commands.Bot):
     async def event_channel_joined(self, channel: twitchio.Channel):
         await channel.send(f'Sbotify is now online!')
         self.log.info(f'Bot joined {channel.name}')
-        self.channel_obj = channel
+        self.channel_obj = await channel.user()
         await self.routine_init()
        
     async def event_error(self, error: Exception, data: str = None):
