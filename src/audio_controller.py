@@ -86,7 +86,7 @@ class AudioController:
                 raise TrackNotFound
             track, artist, link = self.spot.get_track_info(url=link)
 
-        if 'spotify:track:' in request:
+        elif 'spotify:track:' in request:
             request = request.split(' ')
             link = None
             for word in request:
