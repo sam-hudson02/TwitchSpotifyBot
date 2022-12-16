@@ -1,8 +1,7 @@
-FROM ubuntu:latest
+FROM alpine:latest
 
-RUN apt-get update
-RUN apt install -y python3-pip
-RUN apt-get clean
+RUN apk add --update --no-cache python3
+RUN python3 -m ensurepip
 
 RUN mkdir /Sbotify
 RUN mkdir /Sbotify/data
@@ -13,6 +12,6 @@ WORKDIR /Sbotify
 COPY src src
 COPY requirements.txt requirements.txt
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 CMD ["python3", "src/site/app.py"]
