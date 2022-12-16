@@ -74,7 +74,9 @@ class AudioController:
     def add_to_queue(self, request: str, user: str):
 
         # deals with spotify request with link in request
+        print(request)
         if 'open.spotify.com/track' in request:
+            print('spotify link')
             request = request.split(' ')
             link = None
             for word in request:
@@ -86,7 +88,7 @@ class AudioController:
                 raise TrackNotFound
             track, artist, link = self.spot.get_track_info(url=link)
 
-        if 'spotify:track:' in request:
+        elif 'spotify:track:' in request:
             request = request.split(' ')
             link = None
             for word in request:
