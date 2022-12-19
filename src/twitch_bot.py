@@ -84,8 +84,12 @@ class TwitchBot(commands.Bot):
             self.set_live(True)
 
     @update_song_context.error
+    async def context_error(self, error):
+        self.log.error(str(error))
+        await self.init_routines()
+
     @check_live.error
-    async def routine_error(self, error):
+    async def live_error(self, error):
         self.log.error(str(error))
         await self.init_routines()
 

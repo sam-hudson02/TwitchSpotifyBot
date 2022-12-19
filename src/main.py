@@ -13,6 +13,14 @@ from errors import *
 from audio_controller import AudioController, Context
 
 
+def init_log():
+    if not exists('./data'):
+        os.mkdir('./data')
+    if not exists('./data/sbotify.log'):
+        with open('./data/log.txt', 'w') as log_file:
+            log_file.close()
+
+
 def get_creds(log: Log):
     env_path = Path('./secret/conf.env')
     load_dotenv(env_path)
@@ -95,24 +103,28 @@ def start_discord_bot(db_log: Log, creds: dict, settings: dict, ctx: Context):
                        creds['twitch channel'], discord_log, s_bot, db, ac)
     d_bot.run(creds['discord token'])
 
+
 def check_if_discord(creds, log: Log):
     if creds.get('discord token') is None:
         log.info('Discord token not found, not starting Discord bot.')
         return False
     elif creds.get('discord leaderboard channel id') is None:
-        log.info('Discord leaderboard channel id not found, not starting Discord bot.')
+        log.info(
+            'Discord leaderboard channel id not found, not starting Discord bot.')
         return False
     elif creds.get('discord queue channel id') is None:
         log.info('Discord queue channel id not found, not starting Discord bot.')
         return False
     elif creds.get('discord leaderboard channel id') == creds.get('discord queue channel id'):
-        log.info('Discord leaderboard channel id and Discord queue channel id are the same, not starting Discord bot.')
+        log.info(
+            'Discord leaderboard channel id and Discord queue channel id are the same, not starting Discord bot.')
         return False
     else:
         return True
 
 
 def main():
+    init_log()
     main_log = Log('Main', True)
 
     creds = get_creds(main_log)
@@ -121,8 +133,10 @@ def main():
     db_log = Log('Database', bool(settings['log']))
     ctx = Context()
     if check_if_discord(creds, main_log):
-        th.Thread(target=start_discord_bot, args=(db_log, creds, settings, ctx), daemon=True).start()
+        th.Thread(target=start_discord_bot, args=(
+            db_log, creds, settings, ctx), daemon=True).start()
     start_twitch_bot(db_log, creds, settings, ctx)
+
 
 if __name__ == "__main__":
     main()
