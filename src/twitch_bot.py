@@ -83,6 +83,12 @@ class TwitchBot(commands.Bot):
         else:
             self.set_live(True)
 
+    @update_song_context.error
+    @check_live.error
+    async def routine_error(self, error):
+        self.log.error(str(error))
+        await self.init_routines()
+
     def dump_settings(self):
         with open('./data/settings.json', 'w') as s:
             json.dump(self.settings, s)
@@ -120,8 +126,9 @@ class TwitchBot(commands.Bot):
         except ValueError:
             raise TimeNotFound
         return {'time': time_, 'unit': unit}
-    
+
     async def routine_init(self):
+        self.log.info('Starting routines')
         try:
             self.update_song_context.start()
         except RuntimeError:
@@ -139,13 +146,12 @@ class TwitchBot(commands.Bot):
         self.log.info('Restarting routines')
         await self.routine_init()
 
-
     async def event_channel_joined(self, channel: twitchio.Channel):
         await channel.send(f'Sbotify is now online!')
         self.log.info(f'Bot joined {channel.name}')
         self.channel_obj = await channel.user()
         await self.routine_init()
-       
+
     async def event_error(self, error: Exception, data: str = None):
         self.log.error(str(error))
 
@@ -241,13 +247,13 @@ class TwitchBot(commands.Bot):
 
         if not self.active:
             raise NotActive
-        
+
         if not self.is_live:
             resp = f'Song request are currently turned off. ({self.channel_name} not live)'
             await ctx.reply(resp)
             self.log.resp(resp)
             return False
-        
+
         if self.db.is_user_banned(user):
             raise UserBanned
 
@@ -277,7 +283,7 @@ class TwitchBot(commands.Bot):
             await ctx.reply(resp)
             self.log.resp(resp)
             return False
-        
+
         request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
         self.log.req(user, request, str(ctx.command.name))
         if self.db.is_user_privileged(user):
@@ -396,7 +402,6 @@ class TwitchBot(commands.Bot):
 
         time_ = request.replace(f'@{target} ', '')
         time_ = time_.strip(' ')
-
 
         try:
             time_returned = self.time_finder(time_)
@@ -523,7 +528,7 @@ class TwitchBot(commands.Bot):
     def add_veto(self, song_context, user):
         if song_context is None:
             return None
-            
+
         if (song_context['track'], song_context['artist']) != (self.veto_votes['track'], self.veto_votes['artist']):
             self.veto_votes['track'] = song_context['track']
             self.veto_votes['artist'] = song_context['artist']
@@ -591,7 +596,7 @@ class TwitchBot(commands.Bot):
         resp = "Here is a full list of commands: https://pastebin.com/vZ4bNiTn"
         await ctx.reply(resp)
         self.log.resp(resp)
-    
+
     @commands.command(name='sp-set-veto-pass')
     async def set_veto_pass(self, ctx: commands.Context):
         user = ctx.author.name.lower()
@@ -616,7 +621,7 @@ class TwitchBot(commands.Bot):
             resp = f'Could not find a number in your command'
         await ctx.reply(resp)
         self.log.resp(resp)
-    
+
     def set_active(self, active: bool):
         self.active = active
         self.ac.context.active = active
@@ -657,15 +662,12 @@ class TwitchBot(commands.Bot):
 
         # get random song from playlist
         results = self.ac.spot.sp.playlist_items(playlist['uri'], limit=100)
-        
 
         resp = f'Adding {num} random tracks to the queue...!'
         await ctx.reply(resp)
         self.log.resp(resp)
         await self.add_randoms_to_queue(num, results, user)
         return
-
-        
 
     async def add_randoms_to_queue(self, num, results, user):
 
