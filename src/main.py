@@ -54,9 +54,12 @@ def get_settings():
             try:
                 active = bool(settings['active'])
                 disc_bot_on = bool(settings['discord bot'])
-                veto_pass = settings['veto pass']
+                veto_pass = int(settings['veto pass'])
                 log_active = bool(settings['log'])
                 dev_mode = bool(settings['dev mode'])
+                leaderboard_reset = settings['leaderboard reset']
+                leaderboard_rewards = settings['leaderboard rewards']
+                leaderboard_announce = bool(settings['leaderboard announce'])
                 s_file.close()
                 return settings
             except (KeyError, ValueError):
@@ -67,13 +70,19 @@ def get_settings():
     veto_pass = 5
     log_active = True
     dev_mode = False
+    leaderboard_reset = 'off'
+    leaderboard_rewards = []
+    leaderboard_announce = False
     with open('./data/settings.json', 'w') as s_file:
         settings = {'active': int(active),
                     'discord bot': int(disc_bot_on),
                     'veto pass': veto_pass,
                     'log': int(log_active),
-                    'dev mode': int(dev_mode)}
-        json.dump(settings, s_file)
+                    'dev mode': int(dev_mode),
+                    'leaderboard reset': leaderboard_reset,
+                    'leaderboard rewards': leaderboard_rewards,
+                    'leaderboard announce': int(leaderboard_announce),}
+        json.dump(settings, s_file, indent=4)
         s_file.close()
         return settings
 

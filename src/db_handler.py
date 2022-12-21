@@ -1,7 +1,7 @@
-import json
 from errors import *
 from logger import Log
 import sqlite3
+import time
 
 
 class DB:
@@ -11,10 +11,16 @@ class DB:
         self.log = log
         self.user_tb = 'users'
         self.queue_tb = 'queue'
+        self.leaderboard_reset = 'lb_reset'
         self.cursor.execute(
-            f'CREATE TABLE IF NOT EXISTS {self.user_tb} (username VARCHAR(50) NOT NULL, ban TINYINT, moderator TINYINT, administrator TINYINT, requests SMALLINT, rates SMALLINT, rates_given SMALLINT, PRIMARY KEY (username))')
+            f'CREATE TABLE IF NOT EXISTS {self.user_tb} (username VARCHAR(50) NOT NULL, ban TINYINT, moderator TINYINT, administrator TINYINT, \
+            requests SMALLINT, rates SMALLINT, rates_given SMALLINT, PRIMARY KEY (username))')
         self.cursor.execute(
-            f'CREATE TABLE IF NOT EXISTS {self.queue_tb} (request_id INTEGER PRIMARY KEY AUTOINCREMENT, pos SMALLINT, track TEXT, artist TEXT, requester VARCHAR(50), link TEXT)')
+            f'CREATE TABLE IF NOT EXISTS {self.queue_tb} (request_id INTEGER PRIMARY KEY AUTOINCREMENT, pos SMALLINT, track TEXT, artist TEXT, \
+            requester VARCHAR(50), link TEXT)')
+        self.cursor.execute(
+            f'CREATE TABLE IF NOT EXISTS {self.leaderboard_reset} (id INTEGER PRIMARY KEY AUTOINCREMENT, winner VARCHAR(50), date INT, next_reset_date INT, sp_mod_given TINYINT, \
+            active TINYINT DEFAULT 1)')
 
     def error_handler(func: callable):
         def wrapper(*args, **kwargs):
@@ -24,6 +30,41 @@ class DB:
                 print(er)
                 raise DBError
         return wrapper
+
+    @error_handler
+    def remove_active_lb(self, id_: int):
+        sql = f"UPDATE {self.leaderboard_reset} SET active = 0 WHERE id = {id_}"
+        self.cursor.execute(sql)
+        self.db.commit()
+    
+    @error_handler
+    def get_last_reset(self):
+        sql = f"SELECT * FROM {self.leaderboard_reset} WHERE active = 1"
+        self.cursor.execute(sql)
+        if len(self.cursor.fetchall()) == 0:
+            return None
+        else:
+            return self.cursor.fetchall()[0]
+
+    @error_handler
+    def reset_leaderboard(self, winner: str, period: str, rewards: dict):
+        date = int(time.time())
+        if period == 'weekly':
+            next_reset_date = date + 604800
+        elif period == 'monthly':
+            next_reset_date = date + 2592000
+        sql = f"INSERT INTO {self.leaderboard_reset} VALUES ('{winner}', {date}, {next_reset_date}, {rewards.get('sp-mod', 0)})"
+        self.cursor.execute(sql)
+        self.db.commit()
+
+    @error_handler
+    def get_leader(self):
+        sql = f"SELECT username, rates FROM {self.user_tb} ORDER BY rates DESC LIMIT 1"
+        self.cursor.execute(sql)
+        if len(self.cursor.fetchall()) == 0:
+            return None
+        else:
+            return self.cursor.fetchall()[0]
 
     @error_handler
     def check_user_exists(self, username):
