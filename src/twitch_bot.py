@@ -13,9 +13,148 @@ from db_handler import DB
 from errors import *
 from audio_controller import AudioController
 
+class Settings:
+    def __init__(self, log: Log):
+        self.log = log
+        self.__active = False
+        self.__dev_mode = False
+        self.__veto_pass = 5
+        self.__leaderboard_reset = 'off'
+        self.__leaderboard_rewards = []
+        self.__leaderboard_announce = False
+        self.__discord_bot = False
+        self.__log = False
+        self.set_settings()
+    
+    def save_settings(self):
+        settings = {
+            'active': int(self.__active),
+            'dev mode': int(self.__dev_mode),
+            'veto pass': self.__veto_pass,
+            'leaderboard reset': self.__leaderboard_reset,
+            'leaderboard rewards': self.__leaderboard_rewards,
+            'leaderboard announce': int(self.__leaderboard_announce),
+            'discord bot': int(self.__discord_bot),
+            'log': self.__log
+        }
+        with open('./data/settings.json', 'w') as s_file:
+            json.dump(settings, s_file, indent=4)
+
+    def setter(func):
+        def wrapper(self, *args, **kwargs):
+            func(self, *args, **kwargs)
+            if kwargs.get('save', True):
+                self.save_settings()
+        return wrapper
+
+    def pull_settings(self, try_count=0):
+        with open('./data/settings.json') as s_file:
+            try:
+                return json.load(s_file)
+            except json.decoder.JSONDecodeError as e:
+                if try_count > 3:
+                    self.log.error('Error loading settings.json, too many tries.')
+                    raise e
+                self.log.error('Error loading settings.json, trying again in 5 seconds.')
+                time.sleep(5)
+                return self.pull_settings(try_count + 1)
+            
+    
+    def set_settings(self):
+        settings = self.pull_settings()
+        self.set_active(bool(settings.get('active', False)), save=False)
+        self.set_discord_bot(bool(settings.get('discord bot', False)), save=False)
+        self.set_log(bool(settings.get('log', False)), save=False)
+        self.set_dev_mode(bool(settings.get('dev_mode', False)), save=False)
+        self.set_veto_pass(int(settings.get('veto_pass', 5)), save=False)
+        self.set_leaderboard_reset(settings.get('leaderboard reset', 'off'), save=False)
+        self.set_leaderboard_rewards(settings.get('leaderboard rewards', []), save=False)
+        self.set_leaderboard_announce(bool(settings.get('leaderboard announce', False)), save=False)
+
+    @setter
+    def set_active(self, active, save=True):
+        if type(active) is not bool:
+            raise SettingsError('Active must be a boolean.')
+        self.__active = active
+    
+    @setter
+    def set_dev_mode(self, dev_mode, save=True):
+        if type(dev_mode) is not bool:
+            raise SettingsError('Dev mode must be a boolean.')
+        self.__dev_mode = dev_mode
+    
+    @setter
+    def set_veto_pass(self, veto_pass, save=True):
+        if type(veto_pass) is not int:
+            raise SettingsError('Veto pass must be an integer.')
+        elif veto_pass < 2:
+            raise SettingsError('Veto pass must be greater than 1.')
+        self.__veto_pass = veto_pass
+    
+    @setter
+    def set_leaderboard_reset(self, leaderboard_reset, save=True):
+        if type(leaderboard_reset) is not str:
+            raise SettingsError('Leaderboard reset must be a string.')
+
+        leaderboard_reset = leaderboard_reset.lower()
+
+        accepted = ['weekly', 'monthly', 'off']
+        if leaderboard_reset not in accepted:
+            raise SettingsError(f"Leaderboard reset must be either {' or '.join(accepted)}")
+        self.__leaderboard_reset = leaderboard_reset
+    
+    @setter
+    def set_leaderboard_rewards(self, leaderboard_rewards, save=True):
+        if type(leaderboard_rewards) is not list:
+            raise SettingsError('Leaderboard rewards must be a list.')
+        for item in leaderboard_rewards:
+            if item not in ['vip', 'sp_mod']:
+                raise SettingsError('Leaderboard rewards must only contain "vip" or "sp_mod".')
+        self.__leaderboard_rewards = leaderboard_rewards
+
+    @setter
+    def set_leaderboard_announce(self, leaderboard_announce, save=True):
+        if type(leaderboard_announce) is not bool:
+            raise SettingsError('Leaderboard announce must be a boolean.')
+        self.__leaderboard_announce = leaderboard_announce
+
+    @setter
+    def set_discord_bot(self, discord_bot, save=True):
+        if type(discord_bot) is not bool:
+            raise SettingsError('Discord bot must be a boolean.')
+        self.__discord_bot = discord_bot
+
+    @setter
+    def set_log(self, log, save=True):
+        if type(log) is not bool:
+            raise SettingsError('Log must be a boolean.')
+        self.__log = log
+
+    def get_active(self):
+        return self.__active
+    
+    def get_dev_mode(self):
+        return self.__dev_mode
+    
+    def get_veto_pass(self):
+        return self.__veto_pass
+    
+    def get_leaderboard_reset(self):
+        return self.__leaderboard_reset
+    
+    def get_leaderboard_rewards(self):
+        return self.__leaderboard_rewards
+    
+    def get_leaderboard_announce(self):
+        return self.__leaderboard_announce
+
+    def __str__(self) -> str:
+        return f'Active: {self.__active}, Dev mode: {self.__dev_mode}, Veto pass: {self.__veto_pass}, Leaderboard reset: {self.__leaderboard_reset}, \
+                Leaderboard rewards: {self.__leaderboard_rewards}, Leaderboard announce: {self.__leaderboard_announce}'
+
 
 class TwitchBot(commands.Bot):
-    def __init__(self, token, twitch_channel, log: Log, db: DB, ac: AudioController):
+    def __init__(self, token: str, twitch_channel: str, log: Log, db: DB, ac: AudioController):
         super().__init__(token, prefix='!', initial_channels=[twitch_channel])
         self.ac = ac
         self.db = db
@@ -25,12 +164,8 @@ class TwitchBot(commands.Bot):
                            'm': 'minutes', 'h': 'hours', 'd': 'days'}
         self.units = {'s': 1, 'm': 60, 'h': 3600, 'd': 8}
         self.is_live = False
-        self.settings = self.pull_settings()
-        if self.settings is None:
-            self.active = True
-        else:
-            self.active = bool(self.settings['active'])
-        self.ac.context.active = self.active
+        self.settings = Settings(log)
+        self.ac.context.active = self.settings.get_active()
         self.log = log
         self.channel_name = twitch_channel
         self.channel_obj = None
@@ -38,12 +173,9 @@ class TwitchBot(commands.Bot):
 
     @routines.routine(seconds=3)
     async def update_song_context(self):
-        if self.settings is None:
-            self.settings = self.pull_settings()
-            return
         if not self.is_live:
             return
-        if not self.active:
+        if not self.settings.get_active():
             return
         await self.ac.update_context()
 
@@ -66,14 +198,10 @@ class TwitchBot(commands.Bot):
     # creates routine to check if channel is live every 15 seconds
     @routines.routine(seconds=15)
     async def check_live(self):
-        if self.settings is None:
-            self.settings = self.pull_settings()
-            return
-
         if self.channel_obj is None:
             return
 
-        if bool(self.settings['dev mode']):
+        if self.settings.get_dev_mode():
             self.set_live(True)
             return
 
@@ -83,6 +211,56 @@ class TwitchBot(commands.Bot):
         else:
             self.set_live(True)
 
+    @routines.routine(hours=1)
+    async def reset_leaderboard_routine(self):
+        self.check_reset_leaderboard()
+        
+    def check_reset_leaderboard(self):
+        period = self.settings.get_leaderboard_reset()
+        if period == 'off':
+            return
+
+        last = self.db.get_last_reset()
+        leader = self.db.get_leader()
+
+        if leader is None:
+            return
+
+        if last is None:
+            rewards = self.give_rewards(leader)
+            self.db.reset_leaderboard(leader, period=period, rewards=rewards)
+            return
+
+        # checks if leaderboard reset is due by comparing reset time to current time
+        if not int(time.time()) > last[3]:
+            return
+
+        if period == 'weekly':
+            rewards = self.give_rewards(leader)
+            self.db.reset_leaderboard(leader, period=period, rewards=rewards)
+        elif period == 'monthly':
+            rewards = self.give_rewards(leader)
+            self.db.reset_leaderboard(leader, period=period, rewards=rewards)
+        if bool(last[5]):
+            self.remove_rewards(last)
+            self.db.remove_active_lb(last[0])
+            
+    def give_rewards(self, leader):
+        rewards = self.settings.get_leaderboard_rewards()
+        rewards_return = {}
+
+        if self.db.is_user_privileged(leader):
+            pass
+        elif 'sp_mod' in rewards:
+            self.db.mod_user(leader)
+            rewards_return['sp_mod'] = 1
+        
+        return rewards_return
+
+    def remove_rewards(self, last):
+        if bool(last[4]):
+            self.db.remove_privilege_user(last[1])    
+    
     @update_song_context.error
     async def context_error(self, error):
         self.log.error(str(error))
@@ -92,11 +270,6 @@ class TwitchBot(commands.Bot):
     async def live_error(self, error):
         self.log.error(str(error))
         await self.init_routines()
-
-    def dump_settings(self):
-        with open('./data/settings.json', 'w') as s:
-            json.dump(self.settings, s)
-            s.close()
 
     # method for finding a mentioned user
     def target_finder(self, request):
@@ -141,7 +314,11 @@ class TwitchBot(commands.Bot):
             self.check_live.start()
         except RuntimeError:
             self.check_live.restart()
-
+        try:
+            self.reset_leaderboard_routine.start()
+        except RuntimeError:
+            self.reset_leaderboard_routine.restart()
+        
     async def event_ready(self):
         self.log.info('Bot is ready')
 
@@ -234,6 +411,10 @@ class TwitchBot(commands.Bot):
             if len(self.connected_channels) < 1:
                 await asyncio.sleep(20)
                 await self.join_channels(self.channel_name)
+
+        elif isinstance(error, SettingsError):
+            await context.reply(error.message)
+            self.log.resp(error.message)
         else:
             traceback.print_exception(
                 type(error), error, error.__traceback__, file=sys.stderr)
@@ -249,7 +430,7 @@ class TwitchBot(commands.Bot):
         request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
         self.log.req(user, request, ctx.command.name)
 
-        if not self.active:
+        if not self.settings.get_active():
             raise NotActive
 
         if not self.is_live:
@@ -280,7 +461,7 @@ class TwitchBot(commands.Bot):
         user = ctx.author.name.lower()
         self.check_user(user)
 
-        if not self.active:
+        if not self.settings.get_active():
             raise NotActive
         if not self.is_live:
             resp = f'Song request are currently turned off. ({self.channel_name} not live)'
@@ -433,7 +614,7 @@ class TwitchBot(commands.Bot):
 
         self.log.req(user, request, ctx.command.name)
 
-        if not self.active:
+        if not self.settings.get_active():
             if self.db.is_user_privileged(user):
                 self.set_active(True)
                 resp = 'Song request have been turned on!'
@@ -459,7 +640,7 @@ class TwitchBot(commands.Bot):
 
         self.log.req(user, request, ctx.command.name)
 
-        if self.active:
+        if self.settings.get_active():
             if self.db.is_user_privileged(user):
                 self.set_active(False)
                 resp = 'Song request have been turned off!'
@@ -481,7 +662,7 @@ class TwitchBot(commands.Bot):
 
         self.log.req(user, request, ctx.command.name)
 
-        if self.active:
+        if self.settings.get_active():
             if self.is_live:
                 resp = 'Song request are turned on!'
             else:
@@ -500,7 +681,7 @@ class TwitchBot(commands.Bot):
         request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
 
         self.log.req(user, request, ctx.command.name)
-        if self.ac.context.track is None or self.ac.context.paused:
+        if self.ac.context.track is None or self.ac.context.paused or not self.is_live:
             resp = "No song currently playing!"
 
         elif self.ac.context.playing_queue:
@@ -508,6 +689,7 @@ class TwitchBot(commands.Bot):
                    f"@{self.ac.context.requester} !"
         else:
             resp = f"Currently playing {self.ac.context.track} by {self.ac.context.artist}!"
+
         await ctx.reply(resp)
         self.log.resp(resp)
         return None
@@ -544,10 +726,10 @@ class TwitchBot(commands.Bot):
             return f'You have already voted to veto the current song!', False
 
         votes = len(self.veto_votes['votes'])
-        if votes >= self.settings['veto pass']:
+        if votes >= self.settings.get_veto_pass():
             return f'{song_context["track"]} by {song_context["artist"]} has been vetoed by chat LUL', True
         else:
-            return f'{votes} out of {self.settings["veto pass"]} chatters have voted to skip the current song!', False
+            return f'{votes} out of {self.settings.get_veto_pass()} chatters have voted to skip the current song!', False
 
     @commands.command(name='rate', aliases=['like'])
     async def rate(self, ctx: commands.Context):
@@ -589,6 +771,39 @@ class TwitchBot(commands.Bot):
             self.current_rates['raters'].append(rater)
             return f"@{rater} liked @{song_context['requester']}'s song request!"
 
+    @commands.command(name='sp-leader')
+    async def leader(self, ctx: commands.Context):
+        user = ctx.author.name.lower()
+        self.check_user(user)
+
+        request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
+
+        self.log.req(user, request, ctx.command.name)
+
+        leader = self.db.get_leader()
+        if leader is None:
+            resp = "No one has been rated yet!"
+        else:
+            resp = f"Current leader is @{leader[0]} with {leader[1]} rates!"
+
+        await ctx.reply(resp)
+        self.log.resp(resp)
+
+    @commands.command(name='sp-stats')
+    async def stats(self, ctx: commands.Context):
+        user = ctx.author.name.lower()
+        self.check_user(user)
+
+        request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
+
+        self.log.req(user, request, ctx.command.name)
+
+        stats = self.db.get_user_stats(user)
+        resp = f"Your position is {stats['pos']} with {stats['rates']} rates from {stats['requests']} requests and {stats['rates given']} rates given!"
+
+        await ctx.reply(resp)
+        self.log.resp(resp)
+
     @commands.command(name='sp-help')
     async def help(self, ctx: commands.Context):
         user = ctx.author.name.lower()
@@ -618,7 +833,7 @@ class TwitchBot(commands.Bot):
             if new_veto_pass < 2:
                 resp = f'Veto pass must be at least 2'
             else:
-                self.settings['veto pass'] = int(request)
+                self.settings.set_veto_pass(int(request))  
                 self.dump_settings()
                 resp = f'Veto pass has been set to {new_veto_pass}'
         except ValueError:
@@ -627,7 +842,7 @@ class TwitchBot(commands.Bot):
         self.log.resp(resp)
 
     def set_active(self, active: bool):
-        self.active = active
+        self.settings.set_active(active)
         self.ac.context.active = active
 
     def set_live(self, live: bool):
@@ -643,8 +858,11 @@ class TwitchBot(commands.Bot):
         request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
         self.log.req(user, request, ctx.command.name)
 
-        if not self.settings['dev mode']:
+        if not self.settings.get_dev_mode():
             resp = f'Random song queueing is currently disabled (not in dev mode)'
+            await ctx.reply(resp)
+            self.log.resp(resp)
+            return
 
         elif not self.db.is_user_admin(user):
             raise NotAuthorized('admin')
@@ -689,3 +907,65 @@ class TwitchBot(commands.Bot):
                 numbers.remove(song_index)
 
                 self.ac.add_to_queue(song['track']['uri'], user=user)
+
+    @commands.command(name='sp-dev-on')
+    async def dev_mode_off(self, ctx: commands.Context):
+        user = ctx.author.name.lower()
+        request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
+        self.log.req(user, request, ctx.command.name)
+
+        if not self.db.is_user_admin(user):
+            raise NotAuthorized('admin')
+        
+        self.settings.set_dev_mode(True)
+
+        resp = f'Dev mode is now on!'
+        await ctx.reply(resp)
+        self.log.resp(resp)
+
+    @commands.command(name='sp-dev-off')
+    async def dev_mode_on(self, ctx: commands.Context):
+        user = ctx.author.name.lower()
+        request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
+        self.log.req(user, request, ctx.command.name)
+
+        if not self.db.is_user_admin(user):
+            raise NotAuthorized('admin')
+        
+        self.settings.set_dev_mode(False)
+
+        resp = f'Dev mode is now off!'
+        await ctx.reply(resp)
+        self.log.resp(resp)
+
+    @commands.command(name='sp-lb-reset')
+    async def leaderboard_reset(self, ctx: commands.Context):
+        user = ctx.author.name.lower()
+        request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
+        request = request.strip(' ')
+
+        self.log.req(user, request, ctx.command.name)
+
+        if not self.db.is_user_admin(user):
+            raise NotAuthorized('admin')
+
+        self.settings.set_leaderboard_reset(request)
+        resp = f'Leaderboard reset period has been set to {request}.'
+        await ctx.reply(resp)
+        self.log.resp(resp)
+    
+    @commands.command(name='sp-lb-rewards')
+    async def leaderboard_reset_rewards(self, ctx: commands.Context):
+        user = ctx.author.name.lower()
+        request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
+        args = request.split(' ')
+
+        self.log.req(user, request, ctx.command.name)
+
+        if not self.db.is_user_admin(user):
+            raise NotAuthorized('admin')
+
+        self.settings.set_leaderboard_reset_rewards(args)
+        resp = f'Leaderboard reset rewards has been set to {args.join(", ")}.'
+        await ctx.reply(resp)
+        self.log.resp(resp)
