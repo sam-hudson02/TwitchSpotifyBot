@@ -92,6 +92,7 @@ class TestTwitchBot(unittest.TestCase):
 
     def test_leaderboard_reset(self):
         db.delete_all()
+        tb.settings.set_leaderboard_reset('weekly')
         db.init_user('previousWinner', mod=1, rates=1)
         now = int(time.time())
         week_ago = now - 604800
@@ -106,7 +107,18 @@ class TestTwitchBot(unittest.TestCase):
         self.assertAlmostEqual(now + 604800, resets[1][3], delta=20)
         self.assertTrue(db.is_user_mod('leader'))
         self.assertFalse(db.is_user_mod('previousWinner'))
-        
+        db.delete_all()
+        db.init_user('leader', rates=10)
+        db.init_user('previousWinner', mod=1, rates=1)
+        db.add_leaderboard_winner('previousWinner', week_ago, now-100, sp_mod_given=True)
+        tb.settings.set_leaderboard_reset('off')
+        tb.check_reset_leaderboard()
+        resets = db.get_all_resets()
+        self.assertEqual(1, len(resets))
+        self.assertEqual('previousWinner', resets[0][1])
+        self.assertEqual(1, resets[0][5])
+        self.assertTrue(db.is_user_mod('previousWinner'))
+        self.assertFalse(db.is_user_mod('leader'))
 
     def tearDown(self) -> None:
         db.delete_all()

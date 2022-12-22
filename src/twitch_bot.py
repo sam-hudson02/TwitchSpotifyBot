@@ -19,7 +19,7 @@ class Settings:
         self.__active = False
         self.__dev_mode = False
         self.__veto_pass = 5
-        self.__leaderboard_reset = None
+        self.__leaderboard_reset = 'off'
         self.__leaderboard_rewards = []
         self.__leaderboard_announce = False
         self.__discord_bot = False
@@ -98,14 +98,10 @@ class Settings:
 
         leaderboard_reset = leaderboard_reset.lower()
 
-        if leaderboard_reset == 'weekly':
-            self.__leaderboard_reset = 'weekly'
-        elif leaderboard_reset == 'monthly':
-            self.__leaderboard_reset = 'monthly'
-        elif leaderboard_reset == 'off':
-            self.__leaderboard_reset = None
-        else:
-            raise SettingsError("Leaderboard reset must be either 'weekly', 'monthly' or 'off'")
+        accepted = ['weekly', 'monthly', 'off']
+        if leaderboard_reset not in accepted:
+            raise SettingsError(f"Leaderboard reset must be either {' or '.join(accepted)}")
+        self.__leaderboard_reset = leaderboard_reset
     
     @setter
     def set_leaderboard_rewards(self, leaderboard_rewards, save=True):
@@ -221,7 +217,7 @@ class TwitchBot(commands.Bot):
         
     def check_reset_leaderboard(self):
         period = self.settings.get_leaderboard_reset()
-        if period is None:
+        if period == 'off':
             return
 
         last = self.db.get_last_reset()
