@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 import os
 import sys
+import time
 path_src = os.path.abspath('./src')
 sys.path.insert(1, path_src)
 import db_handler as db_handler
@@ -11,33 +12,11 @@ from errors import *
 from twitch_bot import TwitchBot
 from audio_controller import AudioController, Context
 from spotify_api import Spotify
-
-
-def get_creds(log: Log):
-    env_path = Path('./secret/conf.env')
-    load_dotenv(env_path)
-    creds = {
-        'spotify client id': os.getenv('SPOTIFY_CLIENT_ID'),
-        'spotify secret': os.getenv('SPOTIFY_SECRET'),
-        'spotify username': os.getenv('SPOTIFY_USERNAME'),
-        'twitch token': os.getenv('TWITCH_TOKEN'),
-        'twitch channel': os.getenv('TWITCH_CHANNEL'),
-        'discord token': os.getenv('DISCORD_TOKEN'),
-        'discord queue channel id': os.getenv('DISCORD_QUEUE_CHANNEL_ID'),
-        'discord leaderboard channel id': os.getenv('DISCORD_LEADERBOARD_CHANNEL_ID'),
-        'mysql host': os.getenv('MYSQL_HOST'),
-        'mysql user': os.getenv('MYSQL_USER'),
-        'mysql password': os.getenv('MYSQL_PASSWORD')
-    }
-    for cred in creds.keys():
-        if creds[cred] is None:
-            log.critical(f'{cred} missing! Not continuing.')
-            raise NoCreds
-    return creds
+import main
 
 
 logger = Log('test', True, False)
-creds = get_creds(logger)
+creds = main.get_creds(logger)
 db = db_handler.DB(log=logger, db_path='./data/test.sqlite')
 
 ac = AudioController(db, Spotify(
@@ -51,7 +30,7 @@ class TestTwitchBot(unittest.TestCase):
         db.delete_all()
 
     def test_add_veto(self):
-        tb.settings = {"veto pass": 3}
+        tb.settings.set_veto_pass(3)
         song_context1 = {"track": "track1", "artist": "artist1"}
         resp1, skip1 = tb.add_veto(song_context1, "vetouser1")
         self.assertFalse(skip1)
@@ -110,6 +89,24 @@ class TestTwitchBot(unittest.TestCase):
         self.assertRaises(NotAuthorized, tb.unban, 'tempuser', 'tempbanuser')
         self.assertTrue(tb.unban('tempmoduser', 'tempbanuser'))
         self.assertFalse(db.is_user_banned('tempbanuser'))
+
+    def test_leaderboard_reset(self):
+        db.delete_all()
+        db.init_user('previousWinner', mod=1, rates=1)
+        now = int(time.time())
+        week_ago = now - 604800
+        db.add_leaderboard_winner('previousWinner', week_ago, now-100, sp_mod_given=True)
+        db.init_user('leader', rates=10)
+        tb.check_reset_leaderboard()
+        resets = db.get_all_resets()
+        self.assertEqual('previousWinner', resets[0][1])
+        self.assertEqual(0, resets[0][5])
+        self.assertEqual('leader', resets[1][1])
+        self.assertEqual(1, resets[1][5])
+        self.assertAlmostEqual(now + 604800, resets[1][3], delta=20)
+        self.assertTrue(db.is_user_mod('leader'))
+        self.assertFalse(db.is_user_mod('previousWinner'))
+        
 
     def tearDown(self) -> None:
         db.delete_all()

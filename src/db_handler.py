@@ -19,8 +19,8 @@ class DB:
             f'CREATE TABLE IF NOT EXISTS {self.queue_tb} (request_id INTEGER PRIMARY KEY AUTOINCREMENT, pos SMALLINT, track TEXT, artist TEXT, \
             requester VARCHAR(50), link TEXT)')
         self.cursor.execute(
-            f'CREATE TABLE IF NOT EXISTS {self.leaderboard_reset} (id INTEGER PRIMARY KEY AUTOINCREMENT, winner VARCHAR(50), date INT, next_reset_date INT, sp_mod_given TINYINT, \
-            active TINYINT DEFAULT 1)')
+            f'CREATE TABLE IF NOT EXISTS {self.leaderboard_reset} (win_id INTEGER PRIMARY KEY AUTOINCREMENT, winner VARCHAR(50), date INT, next_reset_date INT, sp_mod_given TINYINT, \
+            win_active TINYINT DEFAULT 1)')
 
     def error_handler(func: callable):
         def wrapper(*args, **kwargs):
@@ -32,19 +32,22 @@ class DB:
         return wrapper
 
     @error_handler
-    def remove_active_lb(self, id_: int):
-        sql = f"UPDATE {self.leaderboard_reset} SET active = 0 WHERE id = {id_}"
+    def remove_active_lb(self, win_id: int):
+        sql = f"UPDATE {self.leaderboard_reset} SET win_active = 0 WHERE win_id = {win_id}"
         self.cursor.execute(sql)
         self.db.commit()
     
     @error_handler
     def get_last_reset(self):
-        sql = f"SELECT * FROM {self.leaderboard_reset} WHERE active = 1"
+        sql = f"SELECT * FROM {self.leaderboard_reset} WHERE win_active = 1"
         self.cursor.execute(sql)
-        if len(self.cursor.fetchall()) == 0:
+        results = self.cursor.fetchall()
+        if results is None:
+            return None
+        if len(results) == 0:
             return None
         else:
-            return self.cursor.fetchall()[0]
+            return results[-1]
 
     @error_handler
     def reset_leaderboard(self, winner: str, period: str, rewards: dict):
@@ -53,18 +56,33 @@ class DB:
             next_reset_date = date + 604800
         elif period == 'monthly':
             next_reset_date = date + 2592000
-        sql = f"INSERT INTO {self.leaderboard_reset} VALUES ('{winner}', {date}, {next_reset_date}, {rewards.get('sp-mod', 0)})"
+        self.add_leaderboard_winner(winner, date, next_reset_date, bool(rewards['sp_mod']))
+        self.reset_all_user_stats()
+
+    @error_handler
+    def get_all_resets(self):
+        sql = f"SELECT * FROM {self.leaderboard_reset}"
+        self.cursor.execute(sql)
+        return self.cursor.fetchall()
+
+    @error_handler
+    def add_leaderboard_winner(self, winner: str, start_date, end_date, sp_mod_given: bool):
+        sql = f"INSERT INTO {self.leaderboard_reset} (winner, date, next_reset_date, sp_mod_given) VALUES ('{winner}', {start_date}, {end_date}, {int(sp_mod_given)})"
         self.cursor.execute(sql)
         self.db.commit()
+        self.get_all_resets()
 
     @error_handler
     def get_leader(self):
-        sql = f"SELECT username, rates FROM {self.user_tb} ORDER BY rates DESC LIMIT 1"
+        sql = f"SELECT username, rates FROM {self.user_tb} WHERE rates > 0 ORDER BY rates DESC"
         self.cursor.execute(sql)
-        if len(self.cursor.fetchall()) == 0:
+        results = self.cursor.fetchall()
+        if results is None:
+            return None
+        if len(results) == 0:
             return None
         else:
-            return self.cursor.fetchall()[0]
+            return results[0][0]
 
     @error_handler
     def check_user_exists(self, username):
@@ -390,4 +408,5 @@ class DB:
     def delete_all(self):
         self.cursor.execute(f"DELETE FROM {self.queue_tb}")
         self.cursor.execute(f"DELETE FROM {self.user_tb}")
+        self.cursor.execute(f"DELETE FROM {self.leaderboard_reset}")
         self.db.commit()

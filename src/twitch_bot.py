@@ -216,7 +216,10 @@ class TwitchBot(commands.Bot):
             self.set_live(True)
 
     @routines.routine(hours=1)
-    async def check_reset_leaderboard(self):
+    async def reset_leaderboard_routine(self):
+        self.check_reset_leaderboard()
+        
+    def check_reset_leaderboard(self):
         period = self.settings.get_leaderboard_reset()
         if period is None:
             return
@@ -243,11 +246,8 @@ class TwitchBot(commands.Bot):
             rewards = self.give_rewards(leader)
             self.db.reset_leaderboard(leader, period=period, rewards=rewards)
         if bool(last[5]):
-            self.remove_rewards(last[0])
+            self.remove_rewards(last)
             self.db.remove_active_lb(last[0])
-        
-
-            
             
     def give_rewards(self, leader):
         rewards = self.settings.get_leaderboard_rewards()
@@ -318,7 +318,11 @@ class TwitchBot(commands.Bot):
             self.check_live.start()
         except RuntimeError:
             self.check_live.restart()
-
+        try:
+            self.reset_leaderboard_routine.start()
+        except RuntimeError:
+            self.reset_leaderboard_routine.restart()
+        
     async def event_ready(self):
         self.log.info('Bot is ready')
 
