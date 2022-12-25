@@ -825,8 +825,8 @@ class TwitchBot(commands.Bot):
 
         self.log.req(user, request, ctx.command.name)
 
-        if not self.db.is_user_privileged(user):
-            raise NotAuthorized('mod/admin')
+        if not self.db.is_user_admin(user):
+            raise NotAuthorized('admin')
 
         try:
             new_veto_pass = int(request)
