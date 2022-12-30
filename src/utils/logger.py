@@ -1,9 +1,14 @@
 import logging
 from datetime import datetime
+from os.path import exists
 
 
 class Log:
     def __init__(self, platform: str, log_active: bool = True, print_to_console: bool = True, file='./data/sbotify.log'):
+        if not exists(file):
+            with open(file, 'w') as log_file:
+                log_file.close()
+        
         logging.basicConfig(filename=file, filemode='w',
                             format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S', level=20)
         self.platform = platform

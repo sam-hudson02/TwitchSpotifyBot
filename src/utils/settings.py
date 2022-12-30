@@ -5,7 +5,7 @@ from utils.logger import Log
 
 class Settings:
     def __init__(self, log: Log):
-        self.log = log
+        self.__log = log
         self.__active = False
         self.__dev_mode = False
         self.__veto_pass = 5
@@ -137,6 +137,12 @@ class Settings:
     
     def get_leaderboard_announce(self):
         return self.__leaderboard_announce
+    
+    def get_discord_bot(self):
+        return self.__discord_bot
+    
+    def get_log(self):
+        return self.__log
 
     def __str__(self) -> str:
         return f'Active: {self.__active}, Dev mode: {self.__dev_mode}, Veto pass: {self.__veto_pass}, Leaderboard reset: {self.__leaderboard_reset}, \

@@ -1,4 +1,5 @@
 import spotipy
+from utils import SpotifyCreds
 
 
 class NoCurrentTrack(Exception):
@@ -10,10 +11,10 @@ class BadLink(Exception):
 
 
 class Spotify:
-    def __init__(self, user, client_id, secret):
-        self.user = user
-        self.client_id = client_id
-        self.secret = secret
+    def __init__(self, creds: SpotifyCreds):
+        self.user = creds.username
+        self.client_id = creds.client_id
+        self.secret = creds.client_secret
         self.token = self.get_token()
         self.sp = self.auth()
         self.sp.search(q='test')
