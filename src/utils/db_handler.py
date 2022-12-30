@@ -1,5 +1,5 @@
-from errors import *
-from logger import Log
+from utils.errors import *
+from utils.logger import Log
 import sqlite3
 import time
 

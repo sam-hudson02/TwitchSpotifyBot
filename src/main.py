@@ -1,16 +1,15 @@
 import json
 import os
 import threading as th
-from logger import Log
 from spotify_api import Spotify
-from twitch_bot import TwitchBot
+from twitch.main import TwitchBot
 from discord_bot import DiscordBot
 from os.path import exists
-from db_handler import DB
 from dotenv import load_dotenv
 from pathlib import Path
-from errors import *
+from utils.errors import *
 from audio_controller import AudioController, Context
+from utils import Log, DB, Settings
 
 
 def init_log():
@@ -87,7 +86,7 @@ def get_settings():
         return settings
 
 
-def start_twitch_bot(db_log: Log, creds: dict, settings: dict, ctx: Context):
+def start_twitch_bot(db_log: Log, creds: dict, settings: dict, ctx: Context, settings_obj: Settings):
     twitch_log = Log('Twitch', bool(settings['log']))
     db = DB(db_log)
     s_bot = Spotify(creds['spotify username'],
@@ -96,7 +95,7 @@ def start_twitch_bot(db_log: Log, creds: dict, settings: dict, ctx: Context):
     db.admin_user(creds['twitch channel'].lower())
     ac = AudioController(db, s_bot, ctx)
     t_bot = TwitchBot(creds['twitch token'],
-                      creds['twitch channel'], twitch_log, db, ac)
+                      creds['twitch channel'], twitch_log, db, ac, settings_obj)
     t_bot.run()
 
 
@@ -141,10 +140,11 @@ def main():
 
     db_log = Log('Database', bool(settings['log']))
     ctx = Context()
+    settings_obj = Settings(main_log)
     if check_if_discord(creds, main_log):
         th.Thread(target=start_discord_bot, args=(
             db_log, creds, settings, ctx), daemon=True).start()
-    start_twitch_bot(db_log, creds, settings, ctx)
+    start_twitch_bot(db_log, creds, settings, ctx, settings_obj)
 
 
 if __name__ == "__main__":
