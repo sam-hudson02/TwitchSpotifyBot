@@ -1,6 +1,6 @@
 from spotify_api import Spotify
-from db_handler import DB
-from errors import *
+from utils.db_handler import DB
+from utils.errors import *
 from spotify_api import Spotify
 import asyncio
 import time

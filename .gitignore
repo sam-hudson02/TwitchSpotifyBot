@@ -6,3 +6,5 @@ tests/__pycache__
 src/db-test.py
 /.vscode
 .prettierignore
+src/utils/__pycache__
+src/twitch/__pycache__

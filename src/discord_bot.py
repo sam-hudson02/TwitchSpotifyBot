@@ -2,13 +2,13 @@ import discord
 import sys
 import traceback
 import time
-from logger import Log
+from utils.logger import Log
 from spotify_api import Spotify
-from db_handler import DB
+from utils.db_handler import DB
 from discord.ext import tasks, commands
 from table2ascii import table2ascii as t2a, PresetStyle
 from audio_controller import AudioController
-from errors import *
+from utils.errors import *
 
 
 class DiscordBot(commands.Bot):
