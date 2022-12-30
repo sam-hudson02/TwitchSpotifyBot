@@ -1,11 +1,17 @@
 from utils.errors import *
 from utils.logger import Log
+from os.path import exists
 import sqlite3
 import time
 
 
 class DB:
     def __init__(self, log: Log, db_path: str = './data/app.sqlite'):
+        
+        if not exists(db_path):
+            with open(db_path, 'w') as f:
+                f.close()
+        
         self.db = sqlite3.connect(db_path)
         self.cursor = self.db.cursor()
         self.log = log

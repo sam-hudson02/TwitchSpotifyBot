@@ -4,7 +4,7 @@ import asyncio
 import twitchio
 import time
 from twitchio.ext import commands, routines
-from utils import Log, DB, Settings
+from utils import Log, DB, Settings, TwitchCreds
 from utils.errors import *
 from audio_controller import AudioController
 from twitch.public_offline import OfflineCog as PublicOffline
@@ -13,7 +13,9 @@ from twitch.mod import ModCog
 from twitch.admin import AdminCog
 
 class TwitchBot(commands.Bot):
-    def __init__(self, token: str, twitch_channel: str, log: Log, db: DB, ac: AudioController, settings: Settings):
+    def __init__(self, creds: TwitchCreds, log: Log, db: DB, ac: AudioController, settings: Settings):
+        token = creds.token
+        twitch_channel = creds.channel
         super().__init__(token, prefix='!', initial_channels=[twitch_channel])
         self.ac = ac
         self.db = db
