@@ -1,14 +1,6 @@
 import spotipy
 from utils import SpotifyCreds
-
-
-class NoCurrentTrack(Exception):
-    pass
-
-
-class BadLink(Exception):
-    pass
-
+from utils.errors import BadLink, NoCurrentTrack
 
 class Spotify:
     def __init__(self, creds: SpotifyCreds):
@@ -92,7 +84,7 @@ class Spotify:
             info = self.sp.current_user_playing_track()['item']
             if info is None:
                 raise NoCurrentTrack
-            track, artist, link = self.get_track_info(info=info)
+            track, artist, _ = self.get_track_info(info=info)
             return track, artist
         except TypeError:
             raise NoCurrentTrack
