@@ -1,5 +1,6 @@
 from twitchio.ext import commands
 from utils.errors import *
+import datetime
 
 
 class OfflineCog(commands.Cog):
@@ -44,5 +45,14 @@ class OfflineCog(commands.Cog):
         stats = self.db.get_user_stats(user)
         resp = f"Your position is {stats['pos']} with {stats['rates']} rates from {stats['requests']} requests and {stats['rates given']} rates given!"
 
+        await ctx.reply(resp)
+        self.log.resp(resp)
+
+    @commands.command(name='sp-ping')
+    async def ping(self, ctx: commands.Context):
+        created_at = ctx.message.timestamp.timestamp()
+        now = datetime.datetime.now().timestamp()
+        received_time = round(now - created_at, 2)
+        resp = f'Pong! Received in {received_time} seconds.'
         await ctx.reply(resp)
         self.log.resp(resp)
