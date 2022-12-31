@@ -43,6 +43,8 @@ class TrackNotFound(Exception):
 
 
 class NoCreds(Exception):
+    def __init__(self, missing: str):
+        print(f'No {missing} credential found.')
     pass
 
 
@@ -71,3 +73,6 @@ class UserNotFound(Exception):
 class SettingsError(Exception):
     def __init__(self, message: str):
         self.message = message
+
+class BadLink(Exception):
+    pass
