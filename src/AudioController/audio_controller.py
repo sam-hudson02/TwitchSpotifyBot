@@ -1,25 +1,9 @@
-from spotify_api import Spotify
+from AudioController.spotify_api import Spotify
 from utils.db_handler import DB
 from utils.errors import *
-from spotify_api import Spotify
-import asyncio
+from AudioController.spotify_api import Spotify
 import time
-
-
-# creates a timer that calls a function after given number of milliseconds
-class Timer:
-    def __init__(self, timeout: int, callback: callable):
-        # convert milliseconds to seconds
-        self._timeout = float(timeout / 1000)
-        self._callback = callback
-        self._task = asyncio.ensure_future(self._job())
-
-    async def _job(self):
-        await asyncio.sleep(self._timeout)
-        await self._callback()
-
-    def cancel(self):
-        self._task.cancel()
+from utils.async_timer import Timer
 
 
 class Context:
