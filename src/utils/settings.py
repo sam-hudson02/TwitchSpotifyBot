@@ -12,7 +12,7 @@ class Settings:
         self.__leaderboard_reset = 'off'
         self.__leaderboard_rewards = []
         self.__leaderboard_announce = False
-        self.__discord_bot = False
+        self.__discord_bot = True
         self.__log = False
         self.set_settings()
     
@@ -53,7 +53,7 @@ class Settings:
     def set_settings(self):
         settings = self.pull_settings()
         self.set_active(bool(settings.get('active', False)), save=False)
-        self.set_discord_bot(bool(settings.get('discord bot', False)), save=False)
+        self.set_discord_bot(bool(settings.get('discord bot', True)), save=False)
         self.set_log(bool(settings.get('log', False)), save=False)
         self.set_dev_mode(bool(settings.get('dev mode', False)), save=False)
         self.set_veto_pass(int(settings.get('veto pass', 5)), save=False)
@@ -120,28 +120,36 @@ class Settings:
             raise SettingsError('Log must be a boolean.')
         self.__log = log
 
-    def get_active(self):
+    @property
+    def active(self):
         return self.__active
     
-    def get_dev_mode(self):
+    @property
+    def dev_mode(self):
         return self.__dev_mode
     
-    def get_veto_pass(self):
+    @property
+    def veto_pass(self):
         return self.__veto_pass
     
-    def get_leaderboard_reset(self):
+    @property
+    def leaderboard_reset(self):
         return self.__leaderboard_reset
     
-    def get_leaderboard_rewards(self):
+    @property
+    def leaderboard_rewards(self):
         return self.__leaderboard_rewards
     
-    def get_leaderboard_announce(self):
+    @property
+    def leaderboard_announce(self):
         return self.__leaderboard_announce
     
-    def get_discord_bot(self):
+    @property
+    def discord_bot(self):
         return self.__discord_bot
     
-    def get_log(self):
+    @property
+    def log(self):
         return self.__log
 
     def __str__(self) -> str:
