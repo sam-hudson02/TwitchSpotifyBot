@@ -12,7 +12,7 @@ class OnlineCog(commands.Cog):
         self.current_rates = {'track': '', 'artist': '', 'raters': []}
     
     async def cog_check(self, ctx: commands.Context) -> bool:
-        if not self.settings.get_active():
+        if not self.settings.active:
             raise NotActive
         if not self.bot.is_live:
             return False
@@ -22,7 +22,7 @@ class OnlineCog(commands.Cog):
     async def update_song_context(self):
         if not self.bot.is_live:
             return
-        if not self.settings.get_active():
+        if not self.settings.active:
             return
         await self.ac.update_context()
 
@@ -102,10 +102,10 @@ class OnlineCog(commands.Cog):
             return f'You have already voted to veto the current song!', False
 
         votes = len(self.veto_votes['votes'])
-        if votes >= self.settings.get_veto_pass():
+        if votes >= self.settings.veto_pass:
             return f'{song_context["track"]} by {song_context["artist"]} has been vetoed by chat LUL', True
         else:
-            return f'{votes} out of {self.settings.get_veto_pass()} chatters have voted to skip the current song!', False
+            return f'{votes} out of {self.settings.veto_pass} chatters have voted to skip the current song!', False
 
     @commands.command(name='rate', aliases=['like'])
     async def rate(self, ctx: commands.Context):
