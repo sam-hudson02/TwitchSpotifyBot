@@ -3,9 +3,9 @@ import os
 import sys
 path_src = os.path.abspath('./src')
 sys.path.insert(1, path_src)
-import db_handler as db_handler
-from logger import Log
-from errors import *
+import utils.db_handler as db_handler
+from utils.logger import Log
+from utils.errors import *
 
 logger = Log('test', True, False)
 db = db_handler.DB(log=logger, db_path='./data/test.sqlite')
