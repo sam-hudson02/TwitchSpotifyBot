@@ -1,6 +1,6 @@
 from twitchio.ext import commands
 from utils.errors import *
-import threading as th
+from utils import Timer, time_finder, target_finder
 
 class ModCog(commands.Cog):
     def __init__(self, bot):
@@ -11,6 +11,7 @@ class ModCog(commands.Cog):
         self.settings = bot.settings
         self.units = bot.units
         self.channel_name = bot.channel_name
+        self.units_full = {"s": "seconds", "m": "minutes", "h": "hours", "d": "days"}
 
     async def cog_check(self, ctx: commands.Context) -> bool:
         if not self.db.is_user_privileged(ctx.author.name.lower()):
@@ -19,10 +20,7 @@ class ModCog(commands.Cog):
 
     @commands.command(name='skip')
     async def skip(self, ctx: commands.Context):
-        user = ctx.author.name.lower()
-        self.check_user(user)
-
-        if not self.settings.get_active():
+        if not self.settings.active:
             raise NotActive
         if not self.bot.is_live:
             resp = f'Song request are currently turned off. ({self.channel_name} not live)'
@@ -30,25 +28,17 @@ class ModCog(commands.Cog):
             self.log.resp(resp)
             return False
 
-        request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
-        self.log.req(user, request, str(ctx.command.name))
-        if self.db.is_user_privileged(user):
-            await self.ac.play_next(skipped=True)
-            resp = f'Skipping current track!'
-            await ctx.reply(resp)
-            self.log.resp(resp)
-        else:
-            raise NotAuthorized('mod')
+        await self.ac.play_next(skipped=True)
+        resp = f'Skipping current track!'
+        await ctx.reply(resp)
+        self.log.resp(resp)
 
     @commands.command(name='sp-ban')
     async def ban_command(self, ctx: commands.Context):
         user = ctx.author.name.lower()
-        self.check_user(user)
         request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
 
-        self.log.req(user, request, ctx.command.name)
-
-        target = self.target_finder(request)
+        target = target_finder(self.db, request)
 
         if self.ban(user, target):
             resp = f'@{target} has been banned!'
@@ -72,13 +62,9 @@ class ModCog(commands.Cog):
     @commands.command(name='sp-unban')
     async def unban_command(self, ctx: commands.Context):
         user = ctx.author.name.lower()
-        self.check_user(user)
-
         request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
 
-        self.log.req(user, request, ctx.command.name)
-
-        target = self.target_finder(request)
+        target = target_finder(self.db, request)
 
         if self.unban(user, target):
             resp = f'@{target} has been unbanned!'
@@ -96,30 +82,27 @@ class ModCog(commands.Cog):
     @commands.command(name='sp-timeout')
     async def timeout(self, ctx: commands.Context):
         user = ctx.author.name.lower()
-        self.check_user(user)
 
         com = str(ctx.prefix + ctx.command.name + ' ')
         request = ctx.message.content
         request = request.replace(com, '')
 
-        self.log.req(user, request, ctx.command.name)
-
-        target = self.target_finder(request)
+        target = target_finder(self.db, request)
 
         time_ = request.replace(f'@{target} ', '')
         time_ = time_.strip(' ')
 
         try:
-            time_returned = self.time_finder(time_)
+            time_returned = time_finder(time_)
             if self.ban(user, target):
                 resp = f'@{target} has been timed out for {time_returned["time"]} ' \
                        f'{self.units_full[time_returned["unit"]]}.'
                 await ctx.reply(resp)
                 self.log.resp(resp)
-                time_secs = time_returned['time'] * \
-                    self.units[time_returned['unit']]
+                time_ms = (time_returned['time'] * \
+                    self.units[time_returned['unit']]) * 1000
                 try:
-                    th.Timer(time_secs, self.unban, [user, target])
+                    Timer(time_ms, self.unban, [user, target])
                 except UserAlreadyRole:
                     self.log.info(
                         f'Timeout ended for {target}, user already unbanned.')

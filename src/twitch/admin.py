@@ -3,6 +3,7 @@ import string
 import time
 from twitchio.ext import commands
 from utils.errors import *
+from utils import target_finder
 
 class AdminCog(commands.Cog):
     def __init__(self, bot):
@@ -48,7 +49,7 @@ class AdminCog(commands.Cog):
         user = ctx.author.name.lower()
         request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
 
-        if not self.settings.get_dev_mode():
+        if not self.settings.dev_mode:
             resp = f'Random song queueing is currently disabled (not in dev mode)'
             await ctx.reply(resp)
             self.log.resp(resp)
@@ -100,7 +101,7 @@ class AdminCog(commands.Cog):
         request = ctx.message.content
         request = request.replace(com, '')
 
-        target = self.target_finder(request)
+        target = target_finder(self.db, request)
 
         self.db.mod_user(target)
         resp = f'@{target} is now a mod! Type !sp-help to see all the available commands!'
@@ -111,7 +112,7 @@ class AdminCog(commands.Cog):
     async def remove_mod(self, ctx: commands.Context):
         request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
 
-        target = self.target_finder(request)
+        target = target_finder(self.db, request)
 
         self.db.mod_user(target)
         resp = f'@{target} is no longer a mod.'
@@ -120,7 +121,7 @@ class AdminCog(commands.Cog):
 
     @commands.command(name='sp-on')
     async def sp_on(self, ctx: commands.Context):
-        if not self.settings.get_active():
+        if not self.settings.active:
             self.set_active(True)
             resp = 'Song request have been turned on!'
             await ctx.reply(resp)
@@ -136,7 +137,7 @@ class AdminCog(commands.Cog):
 
     @commands.command(name='sp-off')
     async def sp_off(self, ctx: commands.Context):
-        if self.settings.get_active():
+        if self.settings.active:
             self.set_active(False)
             resp = 'Song request have been turned off!'
             await ctx.reply(resp)

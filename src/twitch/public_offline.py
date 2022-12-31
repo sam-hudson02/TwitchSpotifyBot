@@ -15,7 +15,7 @@ class OfflineCog(commands.Cog):
 
     @commands.command(name='sp-status')
     async def sp_status(self, ctx: commands.Context):
-        if self.settings.get_active():
+        if self.settings.active:
             if self.bot.is_live:
                 resp = 'Song request are turned on!'
             else:
