@@ -184,6 +184,8 @@ class DB:
         sql = f"UPDATE {self.user_tb} SET ban = '1' WHERE username = '{username}'"
         self.cursor.execute(sql)
         self.db.commit()
+        self.log.info(f'Banned user: {username}')
+
 
     @error_handler
     def unban_user(self, username: str):
@@ -191,6 +193,7 @@ class DB:
         sql = f"UPDATE {self.user_tb} SET ban = '0' WHERE username = '{username}'"
         self.cursor.execute(sql)
         self.db.commit()
+        self.log.info(f'Unbanned user: {username}')
 
     @error_handler
     def mod_user(self, username: str):
