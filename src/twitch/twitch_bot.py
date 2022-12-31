@@ -6,7 +6,7 @@ import time
 from twitchio.ext import commands, routines
 from utils import Log, DB, Settings, TwitchCreds
 from utils.errors import *
-from audio_controller import AudioController
+from AudioController.audio_controller import AudioController
 from twitch.public_offline import OfflineCog as PublicOffline
 from twitch.public_online import OnlineCog as PublicOnline
 from twitch.mod import ModCog
@@ -22,7 +22,7 @@ class TwitchBot(commands.Bot):
         self.units = {'s': 1, 'm': 60, 'h': 3600, 'd': 86400}
         self.is_live = False
         self.settings = settings
-        self.ac.context.active = self.settings.get_active()
+        self.ac.context.active = self.settings.active
         self.log = log
         self.channel_name = twitch_channel
         self.channel_obj = None
@@ -38,12 +38,10 @@ class TwitchBot(commands.Bot):
 
     @routines.routine(seconds=15)
     async def check_live(self):
-        print('Checking if live...')
-
         if self.channel_obj is None:
             return
 
-        if self.settings.get_dev_mode():
+        if self.settings.dev_mode:
             self.set_live(True)
             return
 
@@ -150,7 +148,7 @@ class TwitchBot(commands.Bot):
             return None
     
     def check_reset_leaderboard(self):
-        period = self.settings.get_leaderboard_reset()
+        period = self.settings.leaderboard_reset
         if period == 'off':
             return
 
@@ -180,7 +178,7 @@ class TwitchBot(commands.Bot):
             self.db.remove_active_lb(last[0])
             
     def give_rewards(self, leader):
-        rewards = self.settings.get_leaderboard_rewards()
+        rewards = self.settings.leaderboard_rewards
         rewards_return = {}
 
         if self.db.is_user_privileged(leader):
@@ -204,38 +202,6 @@ class TwitchBot(commands.Bot):
     async def reset_leaderboard_error(self, error):
         self.log.error(str(error))
         await self.init_routines()
-    
-    # method for finding a mentioned user
-    def target_finder(self, request):
-        words = request.split(' ')
-        for word in words:
-            if word.startswith('@'):
-                target = word
-                target = target.strip('@')
-                target = target.strip('\n')
-                target = target.strip('\r')
-                target = target.strip(' ')
-                self.db.check_user_exists(target)
-                return target
-        raise TargetNotFound
-
-    def time_finder(self, time_):
-        for unit in self.units.keys():
-            if unit in time_:
-                time_ = time_.strip(unit)
-                try:
-                    time_ = int(time_)
-                except ValueError:
-                    raise TimeNotFound
-                return {'time': time_, 'unit': unit}
-        # if no unit is found, default to minutes
-        unit = 'm'
-        time_ = time_.strip(unit)
-        try:
-            time_ = int(time_)
-        except ValueError:
-            raise TimeNotFound
-        return {'time': time_, 'unit': unit}
     
     async def routine_init(self):
         self.log.info('Starting routines')
