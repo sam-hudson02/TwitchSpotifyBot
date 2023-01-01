@@ -28,22 +28,46 @@ class DB:
             f'CREATE TABLE IF NOT EXISTS {self.leaderboard_reset} (win_id INTEGER PRIMARY KEY AUTOINCREMENT, winner VARCHAR(50), date INT, next_reset_date INT, sp_mod_given TINYINT, \
             win_active TINYINT DEFAULT 1)')
 
-    def error_handler(func: callable):
-        def wrapper(*args, **kwargs):
+    def error_handler(self, error, func):
+        self.log.error(f'Error in {func.__name__}: {error}')
+        raise DBError
+
+    def check(func: callable):
+        def wrapper(self, *args, **kwargs):
+
+            args = list(args)
+            for ind, item in enumerate(args):
+                if isinstance(item, str):
+                    item = item.replace("'", "''")
+                    item = item.replace('"', '""')
+                    item = item.replace('&', '')
+                    item = item.replace('--', '')
+                    args[ind] = item
+            
+            for kwarg in kwargs.keys():
+                item = kwargs[kwarg]
+                if isinstance(item, str):
+                    item = item.replace("'", "''")
+                    item = item.replace('"', '""')
+                    item = item.replace('&', '')
+                    item = item.replace('--', '')
+                    kwargs[kwarg] = item
+                
             try:
-                return func(*args, **kwargs)
+                return func(self, *args, **kwargs)
             except Exception as er:
-                print(er)
-                raise DBError
+                self.error_handler(er, func)
+                return None
+            
         return wrapper
 
-    @error_handler
+    @check
     def remove_active_lb(self, win_id: int):
         sql = f"UPDATE {self.leaderboard_reset} SET win_active = 0 WHERE win_id = {win_id}"
         self.cursor.execute(sql)
         self.db.commit()
     
-    @error_handler
+    @check
     def get_last_reset(self):
         sql = f"SELECT * FROM {self.leaderboard_reset} WHERE win_active = 1"
         self.cursor.execute(sql)
@@ -55,7 +79,7 @@ class DB:
         else:
             return results[-1]
 
-    @error_handler
+    @check
     def reset_leaderboard(self, winner: str, period: str, rewards: dict):
         date = int(time.time())
         if period == 'weekly':
@@ -65,20 +89,20 @@ class DB:
         self.add_leaderboard_winner(winner, date, next_reset_date, bool(rewards['sp_mod']))
         self.reset_all_user_stats()
 
-    @error_handler
+    @check
     def get_all_resets(self):
         sql = f"SELECT * FROM {self.leaderboard_reset}"
         self.cursor.execute(sql)
         return self.cursor.fetchall()
 
-    @error_handler
+    @check
     def add_leaderboard_winner(self, winner: str, start_date, end_date, sp_mod_given: bool):
         sql = f"INSERT INTO {self.leaderboard_reset} (winner, date, next_reset_date, sp_mod_given) VALUES ('{winner}', {start_date}, {end_date}, {int(sp_mod_given)})"
         self.cursor.execute(sql)
         self.db.commit()
         self.get_all_resets()
 
-    @error_handler
+    @check
     def get_leader(self):
         sql = f"SELECT username, rates FROM {self.user_tb} WHERE rates > 0 ORDER BY rates DESC"
         self.cursor.execute(sql)
@@ -90,7 +114,7 @@ class DB:
         else:
             return results[0][0]
 
-    @error_handler
+    @check
     def check_user_exists(self, username):
         sql = f"SELECT * FROM {self.user_tb} WHERE username = '{username}'"
         self.cursor.execute(sql)
@@ -100,7 +124,7 @@ class DB:
         else:
             return True
 
-    @error_handler
+    @check
     def init_user(self, username: str, ban=0, mod=0, admin=0, requests=0, rates=0, rates_given=0):
         sql = f"INSERT INTO {self.user_tb} VALUES ('{username}', {ban}, {mod}, {admin}, {requests}, {rates}, {rates_given})"
         self.cursor.execute(sql)
@@ -108,7 +132,7 @@ class DB:
         self.log.info(f'Initialized {username}')
         return True
 
-    @error_handler
+    @check
     def delete_user(self, username: str):
         sql = f"DELETE FROM {self.user_tb} WHERE username = '{username}'"
         self.cursor.execute(sql)
@@ -119,20 +143,20 @@ class DB:
         else:
             return False
 
-    @error_handler
+    @check
     def update_user(self, username: str, update: dict):
         for col in update.keys():
             sql = f"UPDATE {self.user_tb} SET {col} = '{update[col]}' WHERE username = '{username}'"
             self.cursor.execute(sql)
             self.db.commit()
 
-    @error_handler
+    @check
     def get_all_users(self):
         sql = f"SELECT username FROM {self.user_tb}"
         self.cursor.execute(sql)
         return [user[0] for user in self.cursor.fetchall()]
 
-    @error_handler
+    @check
     def get_user_full(self, username: str):
         sql = f"SELECT * FROM {self.user_tb} WHERE username = '{username}'"
         self.cursor.execute(sql)
@@ -140,26 +164,26 @@ class DB:
         return {'ban': bool(results[1]), 'mod': bool(results[2]), 'admin': bool(results[3]),
                 'requests': int(results[4]), 'rates': int(results[5]), 'rates given': int(results[6])}
 
-    @error_handler
+    @check
     def is_user_banned(self, username: str):
         sql = f"SELECT ban FROM {self.user_tb} WHERE username = '{username}'"
         self.cursor.execute(sql)
         return bool(self.cursor.fetchall()[0][0])
 
-    @error_handler
+    @check
     def is_user_mod(self, username: str):
         sql = f"SELECT moderator FROM {self.user_tb} WHERE username = '{username}'"
         self.cursor.execute(sql)
         return bool(self.cursor.fetchall()[0][0])
 
-    @error_handler
+    @check
     def is_user_admin(self, username: str):
 
         sql = f"SELECT administrator FROM {self.user_tb} WHERE username = '{username}'"
         self.cursor.execute(sql)
         return bool(self.cursor.fetchall()[0][0])
 
-    @error_handler
+    @check
     def is_user_privileged(self, username: str):
 
         sql = f"SELECT moderator, administrator FROM {self.user_tb} WHERE username = '{username}'"
@@ -170,14 +194,14 @@ class DB:
                 return True
         return False
 
-    @error_handler
+    @check
     def remove_privilege_user(self, username: str):
 
         sql = f"UPDATE {self.user_tb} SET administrator = '0', moderator = '0' WHERE username = '{username}'"
         self.cursor.execute(sql)
         self.db.commit()
 
-    @error_handler
+    @check
     def ban_user(self, username: str):
 
         self.remove_privilege_user(username)
@@ -187,7 +211,7 @@ class DB:
         self.log.info(f'Banned user: {username}')
 
 
-    @error_handler
+    @check
     def unban_user(self, username: str):
 
         sql = f"UPDATE {self.user_tb} SET ban = '0' WHERE username = '{username}'"
@@ -195,7 +219,7 @@ class DB:
         self.db.commit()
         self.log.info(f'Unbanned user: {username}')
 
-    @error_handler
+    @check
     def mod_user(self, username: str):
 
         self.unban_user(username)
@@ -203,7 +227,7 @@ class DB:
         self.cursor.execute(sql)
         self.db.commit()
 
-    @error_handler
+    @check
     def admin_user(self, username: str):
 
         self.mod_user(username)
@@ -211,7 +235,7 @@ class DB:
         self.cursor.execute(sql)
         self.db.commit()
 
-    @error_handler
+    @check
     def add_rate(self, receiver, giver):
 
         sql = f"UPDATE {self.user_tb} SET rates = rates + 1 WHERE username = '{receiver}'"
@@ -220,14 +244,14 @@ class DB:
         self.cursor.execute(sql2)
         self.db.commit()
 
-    @error_handler
+    @check
     def add_requests(self, username: str):
 
         sql = f"UPDATE {self.user_tb} SET requests = requests + 1 WHERE username = '{username}'"
         self.cursor.execute(sql)
         self.db.commit()
 
-    @error_handler
+    @check
     def reset_all_user_stats(self):
 
         sql = f"UPDATE {self.user_tb} SET requests = '0', rates = '0', rates_given = '0'"
@@ -235,7 +259,7 @@ class DB:
         self.db.commit()
         self.log.info('All user stats have been reset')
 
-    @error_handler
+    @check
     def get_user_stats(self, username: str):
 
         sql = f"SELECT rates, requests, rates_given FROM {self.user_tb} WHERE username = '{username}'"
@@ -252,7 +276,7 @@ class DB:
 
         return {'pos': pos, 'requests': info[1], 'rates': info[0], 'rates given': info[2]}
 
-    @error_handler
+    @check
     def get_leaderboard(self):
 
         sql = f"SELECT username, rates FROM {self.user_tb} WHERE rates > 0 ORDER BY rates DESC"
@@ -260,7 +284,7 @@ class DB:
         results = self.cursor.fetchall()
         return self.format_user_results(results)
 
-    @error_handler
+    @check
     def format_user_results(self, results, limit=50):
         sorted_users = []
         sorted_rates = []
@@ -280,7 +304,7 @@ class DB:
             return sorted_position, sorted_users, sorted_rates
 
 
-    @error_handler
+    @check
     def add_to_queue(self, requester: str, track: str, link, artist: str = 'na', pos: int = None):
 
         q = f"SELECT COUNT(*) FROM {self.queue_tb}"
@@ -290,14 +314,12 @@ class DB:
             pos = rows + 1
         elif pos > (rows + 1):
             pos = rows + 1
-        track = track.replace("'", "''")
-        artist = artist.replace("'", "''")
         sql = f"INSERT INTO {self.queue_tb} (requester, track, link, artist, pos) VALUES ('{requester}', '{track}', '{link}', '{artist}', '{pos}')"
         self.cursor.execute(sql)
         self.db.commit()
         return True
 
-    @error_handler
+    @check
     def remove_from_queue_by_id(self, req_id: int):
 
         sql = f"SELECT track, artist, pos FROM {self.queue_tb} WHERE request_id = '{req_id}'"
@@ -314,7 +336,7 @@ class DB:
         self.db.commit()
         return track, artist
 
-    @error_handler
+    @check
     def remove_from_queue_by_info(self, track, artist):
         track = track.replace("'", "''")
         artist = artist.replace("'", "''")
@@ -333,14 +355,14 @@ class DB:
         self.db.commit()
         return True
 
-    @error_handler
+    @check
     def clear_queue(self):
 
         sql = f"DELETE FROM {self.queue_tb}"
         self.cursor.execute(sql)
         self.db.commit()
 
-    @error_handler
+    @check
     def get_req_id_by_track_name(self, track_name):
         track_name = track_name.replace("'", "''")
         sql = f"SELECT request_id FROM {self.queue_tb} WHERE track = '{track_name}'"
@@ -351,7 +373,7 @@ class DB:
         else:
             return None
 
-    @error_handler
+    @check
     def move_request_pos(self, req_id: int, pos_new: int = 1):
 
         sql = f"SELECT pos FROM {self.queue_tb} WHERE request_id = {req_id}"
@@ -372,7 +394,7 @@ class DB:
         self.db.commit()
         return True
 
-    @error_handler
+    @check
     def get_queue(self):
 
         sql = f"SELECT * FROM {self.queue_tb} ORDER BY pos ASC"
@@ -381,14 +403,14 @@ class DB:
         self.db.commit()
         return results
 
-    @error_handler
+    @check
     def get_track_list(self):
 
         sql = f"SELECT track, artist FROM {self.queue_tb}"
         self.cursor.execute(sql)
         return self.cursor.fetchall()
 
-    @error_handler
+    @check
     def is_track_in_queue(self, track: str, artist: str):
         track = track.replace("'", "''")
         artist = artist.replace("'", "''")
@@ -401,7 +423,7 @@ class DB:
 
     # returns requester of track in queue, returns false if track doesn't have a requester
 
-    @error_handler
+    @check
     def get_requester(self, track: str, artist: str):
         track = track.replace("'", "''")
         artist = artist.replace("'", "''")
@@ -413,7 +435,7 @@ class DB:
         else:
             return False
 
-    @error_handler
+    @check
     def delete_all(self):
         self.cursor.execute(f"DELETE FROM {self.queue_tb}")
         self.cursor.execute(f"DELETE FROM {self.user_tb}")
