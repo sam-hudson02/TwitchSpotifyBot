@@ -1,14 +1,14 @@
 from twitchio.ext import commands
 from utils.errors import *
-from utils import Timer, time_finder, target_finder
+from utils import Timer, time_finder, target_finder, Settings, DB, Log, Perms
 
 class ModCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.log = bot.log
-        self.db = bot.db
+        self.log: Log = bot.log
+        self.db: DB = bot.db
         self.ac = bot.ac
-        self.settings = bot.settings
+        self.settings: Settings = bot.settings
         self.units = bot.units
         self.channel_name = bot.channel_name
         self.units_full = {"s": "seconds", "m": "minutes", "h": "hours", "d": "days"}
@@ -108,3 +108,31 @@ class ModCog(commands.Cog):
                         f'Timeout ended for {target}, user already unbanned.')
         except ValueError:
             raise TimeNotFound
+    
+    @commands.command(name='sp-followers')
+    async def followers_only(self, ctx: commands.Context):
+        self.settings.set_permission(Perms.FOLLOWERS)
+        resp = f'Song requests are now open to followers only.'
+        await ctx.reply(resp)
+        self.log.resp(resp)
+
+    @commands.command(name='sp-subs')
+    async def subs_only(self, ctx: commands.Context):
+        self.settings.set_permission(Perms.SUBS)
+        resp = f'Song requests are now open to subscribers only.'
+        await ctx.reply(resp)
+        self.log.resp(resp)
+
+    @commands.command(name='sp-priv')
+    async def privileged_only(self, ctx: commands.Context):
+        self.settings.set_permission(Perms.PRIVILEGED)
+        resp = f'Song requests are now open to privileged users only.'
+        await ctx.reply(resp)
+        self.log.resp(resp)
+
+    @commands.command(name='sp-all')
+    async def all_perms(self, ctx: commands.Context):
+        self.settings.set_permission(Perms.ALL)
+        resp = f'Song requests are now open to everyone.'
+        await ctx.reply(resp)
+        self.log.resp(resp)
