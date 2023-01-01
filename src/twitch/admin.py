@@ -3,15 +3,16 @@ import string
 import time
 from twitchio.ext import commands
 from utils.errors import *
-from utils import target_finder
+from utils import target_finder, Settings, DB, Log
+
 
 class AdminCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.log = bot.log
-        self.db = bot.db
+        self.log: Log = bot.log
+        self.db: DB = bot.db
         self.ac = bot.ac
-        self.settings = bot.settings
+        self.settings: Settings = bot.settings
         self.channel_name = bot.channel_name
     
     async def cog_check(self, ctx: commands.Context) -> bool:
@@ -29,7 +30,6 @@ class AdminCog(commands.Cog):
                 resp = f'Veto pass must be at least 2'
             else:
                 self.settings.set_veto_pass(int(request))  
-                self.dump_settings()
                 resp = f'Veto pass has been set to {new_veto_pass}'
         except ValueError:
             resp = f'Could not find a number in your command'
@@ -186,3 +186,11 @@ class AdminCog(commands.Cog):
         resp = f'Leaderboard reset rewards has been set to {args.join(", ")}.'
         await ctx.reply(resp)
         self.log.resp(resp)
+
+    @commands.command(name='sp-clear-queue')
+    async def clear_queue(self, ctx: commands.Context):
+        self.db.clear_queue()
+        resp = f'Queue has been cleared!'
+        await ctx.reply(resp)
+        self.log.resp(resp)
+        
