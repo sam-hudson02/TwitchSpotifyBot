@@ -15,7 +15,7 @@ from AudioController.spotify_api import Spotify
 
 logger = Log('test', True, False)
 creds = Creds(logger)
-settings = Settings(logger)
+settings = Settings()
 db = DB(log=logger, db_path='./data/test.sqlite')
 
 

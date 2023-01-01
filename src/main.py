@@ -49,7 +49,7 @@ def main():
     main_log = Log('Main', True)
 
     creds = Creds(main_log)
-    settings = Settings(main_log)
+    settings = Settings()
     ctx = Context()
 
     # Database log is used for both twitch and discord bots DB instances
