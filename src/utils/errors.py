@@ -76,3 +76,7 @@ class SettingsError(Exception):
 
 class BadLink(Exception):
     pass
+
+class BadPerms(Exception):
+    def __init__(self, perm: str):
+        self.perm = perm
