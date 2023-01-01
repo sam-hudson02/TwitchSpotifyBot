@@ -1,14 +1,16 @@
 from twitchio.ext import commands
 from utils.errors import *
+from utils import Settings, DB, Log, Perms
 import datetime
 
 
 class OfflineCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.settings = bot.settings
+        self.settings: Settings = bot.settings
         self.check_user = bot.check_user
-        self.log = bot.log
+        self.log: Log = bot.log
+        self.db: DB = bot.db
 
     @commands.command(name='help')
     async def help(self, ctx: commands.Context):
@@ -18,7 +20,7 @@ class OfflineCog(commands.Cog):
     async def sp_status(self, ctx: commands.Context):
         if self.settings.active:
             if self.bot.is_live:
-                resp = 'Song request are turned on!'
+                resp = self.get_perm_resp()
             else:
                 resp = f"Song request are turned on but won't be taken till {self.bot.channel_name} is live."
         else:
@@ -26,7 +28,17 @@ class OfflineCog(commands.Cog):
 
         await ctx.reply(resp)
         self.log.resp(resp)
-    
+
+    def get_perm_resp(self):
+        if self.settings.permission is Perms.ALL:
+            return 'Song request are turned on!'
+        elif self.settings.permission is Perms.FOLLOWERS:
+            return 'Song request are turned on for followers only!'
+        elif self.settings.permission is Perms.SUBS:
+            return 'Song request are turned on for subs only!'
+        elif self.settings.permission is Perms.PRIVILEGED:
+            return 'Song request are turned on for privileged users only!'
+
     @commands.command(name='sp-leader')
     async def leader(self, ctx: commands.Context):
         leader = self.db.get_leader()
