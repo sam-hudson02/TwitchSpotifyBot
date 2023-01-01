@@ -123,6 +123,11 @@ class TwitchBot(commands.Bot):
             await context.reply(resp)
             self.log.resp(resp)
 
+        elif isinstance(error, BadPerms):
+            resp = f'Sorry, you must be a {error.perm} to use this command!'
+            await context.reply(resp)
+            self.log.resp(resp)
+
         elif isinstance(error, asyncio.exceptions.TimeoutError):
             traceback.print_exception(
                 type(error), error, error.__traceback__, file=sys.stderr)
@@ -134,11 +139,14 @@ class TwitchBot(commands.Bot):
         elif isinstance(error, SettingsError):
             await context.reply(error.message)
             self.log.resp(error.message)
+
         else:
             traceback.print_exception(
                 type(error), error, error.__traceback__, file=sys.stderr)
             self.log.error(error)
-    
+
+
+
     def check_user(self, user):
         if user in self.user_cache:
             return None
