@@ -109,7 +109,7 @@ class TestDbHandler(unittest.TestCase):
         user_list = sorted_users.split('\n ')
         self.assertEqual(len(user_list), len(rates_list))
         self.assertEqual(user_list[0], 'dbleaderboarduser99 ')
-        leader = db.get_leader()
+        leader = db.get_leader()[0]
         self.assertEqual(leader, 'dbleaderboarduser99')
         db.add_leaderboard_winner('dbleaderboarduser99', 1000, 1000, False)
         winner_db_entry = db.get_last_reset()

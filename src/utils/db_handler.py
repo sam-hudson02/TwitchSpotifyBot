@@ -112,7 +112,7 @@ class DB:
         if len(results) == 0:
             return None
         else:
-            return results[0][0]
+            return results[0]
 
     @check
     def check_user_exists(self, username):
