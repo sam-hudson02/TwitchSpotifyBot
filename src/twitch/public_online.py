@@ -1,13 +1,15 @@
+import twitchio
 from twitchio.ext import commands, routines
 from utils.errors import *
+from utils import Settings, DB, Log, Perms
 
 class OnlineCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.log = bot.log
-        self.db = bot.db
+        self.log: Log = bot.log
+        self.db: DB = bot.db
         self.ac = bot.ac
-        self.settings = bot.settings
+        self.settings: Settings = bot.settings
         self.veto_votes = {'track': '', 'artist': '', 'votes': []}
         self.current_rates = {'track': '', 'artist': '', 'raters': []}
     
@@ -44,6 +46,8 @@ class OnlineCog(commands.Cog):
         user = ctx.author.name.lower()
         request = ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
 
+        await self.check_permission(ctx.author)
+
         if self.db.is_user_banned(user):
             raise UserBanned
 
@@ -61,6 +65,38 @@ class OnlineCog(commands.Cog):
             self.db.add_requests(user)
             return True
     
+    async def check_permission(self, user: twitchio.PartialChatter):
+        perm: Perms = self.settings.permission
+        if user.is_broadcaster:
+            return
+        if perm is Perms.SUBS:
+            if not user.is_subscriber:
+                raise BadPerms('subscriber')
+        if perm is Perms.FOLLOWERS:
+            if not await self.is_follower(user):
+                raise BadPerms('follower')
+        if perm is Perms.PRIVILEGED:
+            if not await self.is_privileged(user):
+                raise BadPerms('mod, subscriber or vip')
+
+    async def is_follower(self, user: twitchio.PartialChatter):
+        user = await user.user()
+        following = await user.fetch_following()
+        is_follower = self.bot.channel_name in [follow.to_user.name.lower() for follow in following]
+        return is_follower
+
+    async def is_privileged(self, user: twitchio.PartialChatter):
+        if self.db.is_user_privileged(user.name.lower()):
+            return True
+        elif user.is_vip:
+            return True
+        elif user.is_mod:
+            return True
+        elif user.is_subscriber:
+            return True
+        else:
+            return False
+
     @commands.command(name='song', aliases=['song-info'])
     async def song_info(self, ctx: commands.Context):
         if self.ac.context.track is None or self.ac.context.paused:
@@ -140,3 +176,4 @@ class OnlineCog(commands.Cog):
             self.db.add_rate(receiver=song_context['requester'], giver=rater)
             self.current_rates['raters'].append(rater)
             return f"@{rater} liked @{song_context['requester']}'s song request!"
+    
