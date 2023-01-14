@@ -4,6 +4,7 @@ from discord.ext import commands
 from utils.errors import NotAuthorized
 from utils import Log, Settings
 from AudioController.audio_controller import AudioController
+import requests
 
 discord.app_commands.tree
 
@@ -55,4 +56,10 @@ class AdminCog(commands.Cog):
         await interaction.response.send_message(content=resp, ephemeral=True)
         self.log.resp(resp)
 
+    @discord.app_commands.command(name='restart', description='Restart the bot')
+    async def restart(self, interaction: discord.Interaction):
+        resp = "Restarting..."
+        await interaction.response.send_message(content=resp, ephemeral=True)
+        self.log.resp(resp)
+        requests.get('http://192.168.1.101:5000/restart-bot')
     
