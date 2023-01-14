@@ -1,3 +1,4 @@
+Flask~=2.2.2
 spotipy==2.20.0
 requests~=2.28.1
 table2ascii~=0.5.0
