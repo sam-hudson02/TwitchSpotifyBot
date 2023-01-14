@@ -99,23 +99,17 @@ class PublicCog(commands.Cog):
         self.log.resp('pong')
 
     def get_pong_embed(self, ctx: discord.Integration):
-        now = datetime.datetime.now().timestamp()
         embed = discord.Embed(title='🏓 Pong!')
         
-        created_time = ctx.created_at.timestamp()
-        receive_time = round(now - created_time, 2)
-
-        embed.add_field(name='Receive Time', value=f'{receive_time} seconds', inline=False)
+        latency = round(self.bot.latency, 2)
+        embed.add_field(name='Latency', value=f'{latency} seconds', inline=False)
 
         cogs = self.get_running_cogs()
         embed.add_field(name='Cogs Running', value=cogs, inline=False)
 
         routines = self.get_running_routines()
         embed.add_field(name='Routines Running', value=routines, inline=False)
-
-        latency = round(self.bot.latency, 2)
-        embed.add_field(name='Latency', value=f'{latency} seconds', inline=False)
-
+        
         status = self.get_status()
         embed.add_field(name='Status', value=status, inline=False)
         return embed
@@ -156,7 +150,7 @@ class PublicCog(commands.Cog):
         else:
             status_str_list.append('Live Status: Offline')
         if status_active:
-            status_str_list.append('SR Status: Active')
+            status_str_list.append(f'SR Status: Active ({self.settings.permission.value})')
         else:
             status_str_list.append('SR Status: Inactive')
         return '\n'.join(status_str_list)
