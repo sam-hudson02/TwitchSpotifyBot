@@ -128,8 +128,10 @@ class AudioController:
         current_track = self.spot.get_context().get('track', None)
 
         if current_track is None:
+            self.logger.info('No current track.')
             return
         if track_name != current_track:
+            self.logger.info(f'Track name: {track_name} does not match current track: {current_track}.')
             return
         
         self.context.playback_id = track_info[5].split('/')[-1]
@@ -152,7 +154,7 @@ class AudioController:
             # self.spot.sp.start_playback(uris=[next_song[5]])
             # update context
             self.spot.sp.add_to_queue(next_song[5])
-            self.req_timer = Timer(time_left + 500, self.set_requester, args=[next_song])
+            self.req_timer = Timer(time_left + 1000, self.set_requester, args=[next_song])
 
         elif len(queue) > 0 and skipped:
             # get next song in queue
