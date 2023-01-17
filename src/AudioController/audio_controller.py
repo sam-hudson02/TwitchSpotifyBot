@@ -116,10 +116,10 @@ class AudioController:
         time_since_context_update = time.time() * 1000 - self.context_time
         time_left = self.context.duration - (self.context.progress + time_since_context_update)
 
-        if time_left <= 5000 and time_left > 1500:
+        if time_left <= 9700 and time_left > 2100:
             if self.next_timer is not None:
                 self.next_timer.cancel()
-            self.next_timer = Timer(time_left - 1000, self.play_next)
+            self.next_timer = Timer(time_left - 2000, self.play_next)
         return
 
     async def play_next(self, skipped: bool = False):
@@ -132,8 +132,9 @@ class AudioController:
             # remove song from queue
             self.db.remove_from_queue_by_id(next_song[0])
             # play song
-            self.spot.sp.start_playback(uris=[next_song[5]])
+            # self.spot.sp.start_playback(uris=[next_song[5]])
             # update context
+            self.spot.sp.add_to_queue(next_song[5])
             self.context.playback_id = next_song[5].split('/')[-1]
             self.context.requester = next_song[4]
             self.context.playing_queue = True
@@ -141,7 +142,6 @@ class AudioController:
 
         elif self.context.playing_queue:
             # if no songs are in queue, play the playlist
-            self.spot.sp.start_playback(context_uri=self.context.playlist)
             self.context.playing_queue = False
             self.context.requester = None
             await self.update_context()

@@ -20,7 +20,7 @@ class OnlineCog(commands.Cog):
             return False
         return True
 
-    @routines.routine(seconds=3)
+    @routines.routine(seconds=7.5)
     async def update_song_context(self):
         if not self.bot.is_live:
             return
