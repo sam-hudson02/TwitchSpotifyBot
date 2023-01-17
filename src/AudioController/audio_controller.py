@@ -54,6 +54,7 @@ class AudioController:
         self.next_timer = None
         self.timer_started = None
         self.context_time = None
+        self.req_timer = None
 
     def add_to_queue(self, request: str, user: str):
 
@@ -119,14 +120,30 @@ class AudioController:
         if time_left <= 9700 and time_left > 2100:
             if self.next_timer is not None:
                 self.next_timer.cancel()
-            self.next_timer = Timer(time_left - 2000, self.play_next)
+            self.next_timer = Timer(time_left - 2000, self.play_next, args=[False, time_left])
         return
 
-    async def play_next(self, skipped: bool = False):
+    async def set_requester(self, track_info):
+        track_name = track_info[2]
+        current_track = self.spot.get_context().get('track', None)
+
+        if current_track is None:
+            return
+        if track_name != current_track:
+            return
+        
+        self.context.playback_id = track_info[5].split('/')[-1]
+        self.context.requester = track_info[4]
+        self.context.playing_queue = True
+
+    async def play_next(self, skipped: bool = False, time_left: int = 0):
         # check if any songs are in queue
         queue = self.db.get_queue()
         
-        if len(queue) > 0:
+        if self.req_timer is not None:
+            self.req_timer.cancel()
+
+        if len(queue) > 0 and not skipped:
             # get next song in queue
             next_song = queue[0]
             # remove song from queue
@@ -135,10 +152,17 @@ class AudioController:
             # self.spot.sp.start_playback(uris=[next_song[5]])
             # update context
             self.spot.sp.add_to_queue(next_song[5])
-            self.context.playback_id = next_song[5].split('/')[-1]
-            self.context.requester = next_song[4]
-            self.context.playing_queue = True
-            await self.update_context()
+            self.req_timer = Timer(time_left + 500, self.set_requester, args=[next_song])
+
+        elif len(queue) > 0 and skipped:
+            # get next song in queue
+            next_song = queue[0]
+            # remove song from queue
+            self.db.remove_from_queue_by_id(next_song[0])
+            # play song
+            self.spot.sp.start_playback(uris=[next_song[5]])
+            # update context
+            self.req_timer = Timer(time_left + 500, self.set_requester, args=[next_song])
 
         elif self.context.playing_queue:
             # if no songs are in queue, play the playlist
