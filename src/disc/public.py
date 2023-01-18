@@ -120,9 +120,9 @@ class PublicCog(commands.Cog):
         all_cogs = self.bot.online_cogs + self.bot.offline_cogs
         for cog in all_cogs:
             if cog.__cog_name__ in cogs_running:
-                cogs.append(f'{cog.__cog_name__}: Running')
+                cogs.append(f'{cog.__cog_name__}: 🟢 Running')
             else:
-                cogs.append(f'{cog.__cog_name__}: Not Running')
+                cogs.append(f'{cog.__cog_name__}: 🔴 Not Running')
         return '\n'.join(cogs)
     
     def get_running_routines(self) -> str:
@@ -136,9 +136,9 @@ class PublicCog(commands.Cog):
         
         for routine in routines.keys():
             if routines[routine]:
-                routines_str_list.append(f'{routine}: Running')
+                routines_str_list.append(f'{routine}: 🟢 Running')
             else:
-                routines_str_list.append(f'{routine}: Not Running')
+                routines_str_list.append(f'{routine}: 🔴 Not Running')
         return '\n'.join(routines_str_list)
 
     def get_status(self) -> str:
@@ -146,11 +146,11 @@ class PublicCog(commands.Cog):
         status_active = self.settings.active
         status_str_list = []
         if status_live:
-            status_str_list.append('Live Status: Online')
+            status_str_list.append('Live Status: 🟢 Online')
         else:
-            status_str_list.append('Live Status: Offline')
+            status_str_list.append('Live Status: 🔴 Offline')
         if status_active:
-            status_str_list.append(f'SR Status: Active ({self.settings.permission.value})')
+            status_str_list.append(f'SR Status: 🟢 Active ({self.settings.permission.value})')
         else:
-            status_str_list.append('SR Status: Inactive')
+            status_str_list.append('SR Status: 🔴 Inactive')
         return '\n'.join(status_str_list)
