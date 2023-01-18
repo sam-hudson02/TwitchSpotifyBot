@@ -62,9 +62,6 @@ class OfflineCog(commands.Cog):
 
     @commands.command(name='sp-ping')
     async def ping(self, ctx: commands.Context):
-        created_at = ctx.message.timestamp.timestamp()
-        now = datetime.datetime.now().timestamp()
-        received_time = round(now - created_at, 2)
-        resp = f'Pong! Received in {received_time} seconds.'
+        resp = f'Pong!'
         await ctx.reply(resp)
         self.log.resp(resp)
