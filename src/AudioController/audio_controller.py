@@ -4,6 +4,7 @@ from utils.errors import *
 from AudioController.spotify_api import Spotify
 import time
 from utils.async_timer import Timer
+from utils import Log
 
 
 class Context:
@@ -45,9 +46,10 @@ class Context:
 
 
 class AudioController:
-    def __init__(self, db: DB, spot: Spotify, ctx: Context):
+    def __init__(self, db: DB, spot: Spotify, ctx: Context, log: Log):
         self.db = db
         self.spot = spot
+        self.log = log
         # Context is initialized in the main.py so that it can be shared between twitch_bot and discord_bot
         self.context = ctx
         self.playlist = None
@@ -125,18 +127,21 @@ class AudioController:
 
     async def set_requester(self, track_info):
         track_name = track_info[2]
-        current_track = self.spot.get_context().get('track', None)
+        current_playback_id = self.spot.get_context().get('playback_id', None)
 
-        if current_track is None:
-            self.logger.info('No current track.')
+        if current_playback_id is None:
+            self.log.info('No current track.')
             return
-        if track_name != current_track:
-            self.logger.info(f'Track name: {track_name} does not match current track: {current_track}.')
+                
+        playback_id = track_info[5].split('/')[-1]
+        if playback_id != current_playback_id:
+            self.log.info(f'Playback ID does not match. {playback_id} != {current_playback_id}')
             return
-        
-        self.context.playback_id = track_info[5].split('/')[-1]
+
+        self.context.playback_id = playback_id
         self.context.requester = track_info[4]
         self.context.playing_queue = True
+        self.log.info(f'Set requester to {track_info[4]} for {track_name}')
 
     async def play_next(self, skipped: bool = False, time_left: int = 0):
         # check if any songs are in queue
@@ -154,7 +159,7 @@ class AudioController:
             # self.spot.sp.start_playback(uris=[next_song[5]])
             # update context
             self.spot.sp.add_to_queue(next_song[5])
-            self.req_timer = Timer(time_left + 1000, self.set_requester, args=[next_song])
+            self.req_timer = Timer(time_left + 3000, self.set_requester, args=[next_song])
 
         elif len(queue) > 0 and skipped:
             # get next song in queue
@@ -164,7 +169,7 @@ class AudioController:
             # play song
             self.spot.sp.start_playback(uris=[next_song[5]])
             # update context
-            self.req_timer = Timer(time_left + 500, self.set_requester, args=[next_song])
+            self.req_timer = Timer(time_left + 3000, self.set_requester, args=[next_song])
 
         elif self.context.playing_queue:
             # if no songs are in queue, play the playlist
