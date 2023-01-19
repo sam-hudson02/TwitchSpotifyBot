@@ -25,9 +25,9 @@ def start_twitch_bot(db_log: Log, creds: Creds, settings: Settings, ctx: Context
     db.check_user_exists(twitch_channel)
     db.admin_user(twitch_channel)
 
-    ac = AudioController(db, s_bot, ctx)
+    ac = AudioController(db, s_bot, ctx, ac_log)
 
-    t_bot = TwitchBot(creds.twitch, twitch_log, db, ac, settings, ac_log)
+    t_bot = TwitchBot(creds.twitch, twitch_log, db, ac, settings)
     t_bot.run()
 
 
