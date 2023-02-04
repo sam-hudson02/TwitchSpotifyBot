@@ -102,6 +102,6 @@ pipeline {
   }
 
   tools {
-    git 'latest'
+    git 'Default'
   }
 }
