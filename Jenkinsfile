@@ -31,14 +31,14 @@ pipeline {
             }
 
             // build docker image with version and latest tags
-            sh "docker build -t samhudson02/twitchspotifybot:${versionStringFormatted} -t samhudson02/twitchspotifybot:latest ."
+            sh "docker build -t samhudson02/sbotify:${versionStringFormatted} -t samhudson02/sbotify:latest ."
             // login to docker hub
             sh "docker login -u ${DOCKER_CREDS_USR} -p ${DOCKER_CREDS_PSW}"
             // push docker image to docker hub
-            sh "docker push samhudson02/twitchspotifybot:${versionStringFormatted}"
+            sh "docker push samhudson02/sbotify:${versionStringFormatted}"
             // push latest tag to docker hub if branch is main
             if (env.BRANCH_NAME == "main") {
-                sh "docker push samhudson02/twitchspotifybot:latest"
+                sh "docker push samhudson02/sbotify:latest"
             }
         }
       }
