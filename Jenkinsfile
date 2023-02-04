@@ -1,0 +1,96 @@
+pipeline {
+  agent {
+    node {
+      label 'pi'
+    }
+
+  }
+  stages {
+    stage('pull code') {
+      steps {
+        git(url: 'https://github.com/sam-hudson02/TwitchSpotifyBot', branch: 'main')
+      }
+    }
+    stage('build docker image') {
+      steps {
+        script {
+            // increment the version number
+            def version = env.TSB_VERSION + 1
+            env.TSB_VERSION = version
+            def versionString = version.toString()
+            // add . between each number
+            def versionStringFormatted = versionString.split('').join('.')
+            // add zero to start of version if needed
+            if (versionStringFormatted.length() == 2) {
+                versionStringFormatted = "0" + versionStringFormatted
+            }
+
+            // build docker image with version and latest tags
+            sh "docker build -t samhudson02/twitchspotifybot:${versionStringFormatted} -t samhudson02/twitchspotifybot:latest ."
+            // push docker image to docker hub
+            sh "docker push samhudson02/twitchspotifybot:${versionStringFormatted}"
+            sh "docker push samhudson02/twitchspotifybot:latest"
+        }
+      }
+    }
+  }
+  post {
+    success {
+      script {
+        def gitCommit = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+        def gitAuthor = sh(returnStdout: true, script: 'git --no-pager show -s --format=%an').trim()
+        def dateTime = sh(returnStdout: true, script: 'date +%d-%m-%Y_%H:%M:%S').trim()
+        // remove the 'and counting' from the duration string
+        def buildTime = currentBuild.durationString.split('and')[0].trim()
+        def commitURL = "https://github.com/sam-hudson02/TwitchSpotifyBot/commit/" + gitCommit
+        def commitTitle = sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
+
+        def payload = [
+          "build_id": env.BUILD_ID,
+          "build_name": "TwitchSpotifyBot",
+          "build_url": env.BUILD_URL,
+          "build_date": dateTime,
+          "commit_author": gitAuthor,
+          "commit_title": commitTitle,
+          "commit_url": commitURL,
+          "build_result": "SUCCESS",
+          "build_duration": buildTime
+        ]
+
+        def payloadString = payload.collect{ k,v -> "\"${k}\":\"${v}\"" }.join(',')
+        def payloadJson = "{${payloadString}}"
+        sh "curl -d '${payloadJson}' -H 'Content-Type: application/json' http://192.168.3.101:5005/build-notify"
+      }
+    }
+    failure {
+      script {
+        def gitCommit = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+        def gitAuthor = sh(returnStdout: true, script: 'git --no-pager show -s --format=%an').trim()
+        def dateTime = sh(returnStdout: true, script: 'date +%d-%m-%Y_%H:%M:%S').trim()
+        // remove the 'and counting' from the duration string
+        def buildTime = currentBuild.durationString.split('and')[0].trim()
+        def commitURL = "https://github.com/sam-hudson02/TwitchSpotifyBot/commit/" + gitCommit
+        def commitTitle = sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
+
+        def payload = [
+          "build_id": env.BUILD_ID,
+          "build_name": "TwitchSpotifyBot",
+          "build_url": env.BUILD_URL,
+          "build_date": dateTime,
+          "commit_author": gitAuthor,
+          "commit_title": commitTitle,
+          "commit_url": commitURL,
+          "build_result": "FAILURE",
+          "build_duration": buildTime
+        ]
+
+        def payloadString = payload.collect{ k,v -> "\"${k}\":\"${v}\"" }.join(',')
+        def payloadJson = "{${payloadString}}"
+        sh "curl -d '${payloadJson}' -H 'Content-Type: application/json' http://192.168.3.101:5005/build-notify"
+      }
+    }
+  }
+  tools {
+    nodejs 'nodejs'
+  }
+}
