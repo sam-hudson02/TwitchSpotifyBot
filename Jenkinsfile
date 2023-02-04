@@ -18,8 +18,8 @@ pipeline {
             steps {
                 script {
                     // increment the version number
-                    def version = env.TSB_VERSION + 1
-                    version = version.toInteger()
+                    def version = env.TSB_VERSION
+                    version = version.toInteger() + 1
                     env.TSB_VERSION = version
                     def versionString = version.toString()
                     // add . between each number
