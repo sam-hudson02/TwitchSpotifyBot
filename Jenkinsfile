@@ -3,8 +3,12 @@ pipeline {
     node {
       label 'pi'
     }
-
   }
+
+  environment {
+    DOCKER_CREDS = credentials('docker')
+  }
+
   stages {
     stage('pull code') {
       steps {
@@ -16,6 +20,7 @@ pipeline {
         script {
             // increment the version number
             def version = env.TSB_VERSION + 1
+            version = version.toInteger()
             env.TSB_VERSION = version
             def versionString = version.toString()
             // add . between each number
@@ -27,6 +32,8 @@ pipeline {
 
             // build docker image with version and latest tags
             sh "docker build -t samhudson02/twitchspotifybot:${versionStringFormatted} -t samhudson02/twitchspotifybot:latest ."
+            // login to docker hub
+            sh "docker login -u ${DOCKER_CREDS_USR} -p ${DOCKER_CREDS_PSW}"
             // push docker image to docker hub
             sh "docker push samhudson02/twitchspotifybot:${versionStringFormatted}"
             sh "docker push samhudson02/twitchspotifybot:latest"
@@ -89,8 +96,5 @@ pipeline {
         sh "curl -d '${payloadJson}' -H 'Content-Type: application/json' http://192.168.3.101:5005/build-notify"
       }
     }
-  }
-  tools {
-    nodejs 'nodejs'
   }
 }
