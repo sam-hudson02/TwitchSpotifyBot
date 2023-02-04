@@ -57,6 +57,9 @@ class AudioController:
         self.timer_started = None
         self.context_time = None
         self.req_timer = None
+        self.queue_blocked = False
+        self.next = None
+        self.history = []
 
     def add_to_queue(self, request: str, user: str):
 
@@ -143,6 +146,15 @@ class AudioController:
         self.context.playing_queue = True
         self.log.info(f'Set requester to {track_info[4]} for {track_name}')
 
+    def recheck_queue(self):
+        if self.context.playback_id == self.next['id']:
+            self.log.info(f'Playback ID matches next song in queue. {self.context.playback_id} == {self.next["id"]}')
+            self.context.requester = self.next['requester']
+            self.context.playing_queue = True
+            self.queue_blocked = False
+            return
+        self.check_history()
+
     async def play_next(self, skipped: bool = False, time_left: int = 0):
         # check if any songs are in queue
         queue = self.db.get_queue()
@@ -151,6 +163,8 @@ class AudioController:
             self.req_timer.cancel()
 
         if len(queue) > 0 and not skipped:
+            if self.queue_blocked:
+                return
             # get next song in queue
             next_song = queue[0]
             # remove song from queue
@@ -158,10 +172,22 @@ class AudioController:
             # play song
             # self.spot.sp.start_playback(uris=[next_song[5]])
             # update context
+            self.log.info(f'Preparing to play {next_song[2]} requested by {next_song[4]}')
             self.spot.sp.add_to_queue(next_song[5])
-            self.req_timer = Timer(time_left + 3000, self.set_requester, args=[next_song])
+            spot_queue = self.spot.get_queue()
+            playback_id = next_song[5].split('/')[-1]
+            if spot_queue[0] != playback_id:
+                self.log.info(f'Playback position is not correct. {str(spot_queue[0])} != {playback_id}')
+                self.queue_blocked = True
+                self.next = {'id': playback_id, 'requester': next_song[4]}
+            else:
+                self.req_timer = Timer(time_left + 3000, self.set_requester, args=[next_song])
+            self.add_to_history()
 
         elif len(queue) > 0 and skipped:
+            if self.queue_blocked:
+                self.spot.sp.next_track()
+                return
             # get next song in queue
             next_song = queue[0]
             # remove song from queue
@@ -183,6 +209,21 @@ class AudioController:
 
         return
 
+    def check_history(self):
+        for song in self.history:
+            if song['id'] == self.context.playback_id:
+                self.context.requester = song['requester']
+                self.context.playing_queue = True
+                self.history.remove(song)
+                self.log.info(f'Set requester to {song["requester"]} for {self.context.track}')
+                return True
+        return False
+
+    def add_to_history(self, playback_id, requester):
+        self.history.append({'id': playback_id, 'requester': requester})
+        if len(self.history) > 10:
+            self.history.pop(0)
+
     async def update_context(self):
         if not self.context.active:
             return
@@ -193,6 +234,8 @@ class AudioController:
         if new_context is not None:
             self.context.update(new_context)
             await self.check_context()
+            if self.queue_blocked:
+                self.recheck_queue()
         else:
             self.context.track = None
             self.context.paused = True

@@ -200,3 +200,12 @@ class Spotify:
             return info['context']['external_urls']['spotify']
         except (KeyError, TypeError):
             return None
+
+    def get_queue(self):
+        info = self.sp.queue()
+        queue = info['queue']
+        queue_info = []
+        for track in queue:
+            queue_info.append(track['id'])
+        print(queue_info)
+        return queue_info
