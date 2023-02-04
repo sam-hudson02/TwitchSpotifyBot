@@ -102,6 +102,6 @@ pipeline {
   }
 
   tools {
-    git 'Default'
+    nodejs 'nodejs'
   }
 }
