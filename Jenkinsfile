@@ -36,7 +36,10 @@ pipeline {
             sh "docker login -u ${DOCKER_CREDS_USR} -p ${DOCKER_CREDS_PSW}"
             // push docker image to docker hub
             sh "docker push samhudson02/twitchspotifybot:${versionStringFormatted}"
-            sh "docker push samhudson02/twitchspotifybot:latest"
+            // push latest tag to docker hub if branch is main
+            if (env.BRANCH_NAME == "main") {
+                sh "docker push samhudson02/twitchspotifybot:latest"
+            }
         }
       }
     }
@@ -96,5 +99,9 @@ pipeline {
         sh "curl -d '${payloadJson}' -H 'Content-Type: application/json' http://192.168.3.101:5005/build-notify"
       }
     }
+  }
+
+  tools {
+    git 'latest'
   }
 }
