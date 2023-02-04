@@ -35,8 +35,9 @@ pipeline {
                     sh 'docker login -u $DOCKER_CREDS_USR -p $DOCKER_CREDS_PSW'
                     // push docker image to docker hub
                     sh "docker push samhudson02/sbotify:${versionStringFormatted}"
-                    // push latest tag to docker hub if branch is main
-                    if (env.BRANCH_NAME == "main") {
+
+                    def branch = sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
+                    if (branch == "main") {
                         sh "docker push samhudson02/sbotify:latest"
                     }
                 }
