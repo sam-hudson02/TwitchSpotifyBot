@@ -12,7 +12,7 @@ pipeline {
   stages {
     stage('pull code') {
       steps {
-        git(url: 'https://github.com/sam-hudson02/TwitchSpotifyBot', branch: 'main')
+        sh 'git pull origin'
       }
     }
     stage('build docker image') {
@@ -99,9 +99,5 @@ pipeline {
         sh "curl -d '${payloadJson}' -H 'Content-Type: application/json' http://192.168.3.101:5005/build-notify"
       }
     }
-  }
-
-  tools {
-    nodejs 'nodejs'
   }
 }
