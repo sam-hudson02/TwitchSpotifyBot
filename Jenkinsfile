@@ -24,7 +24,7 @@ pipeline {
                     def versionString = version.toString()
                     // add zero to start of version if needed
                     if (versionString.length() == 2) {
-                        versionString = "0" + versionStringFormatted
+                        versionString = "0" + versionString
                     }
 
                     // add . between each number
