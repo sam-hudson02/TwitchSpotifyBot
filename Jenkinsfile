@@ -12,7 +12,7 @@ pipeline {
   stages {
     stage('pull code') {
       steps {
-        sh 'git pull origin'
+        git(url: 'https://github.com/sam-hudson02/AquaByDesign', branch: 'main', credentialsId: 'personal_github')
       }
     }
     stage('build docker image') {
@@ -99,5 +99,8 @@ pipeline {
         sh "curl -d '${payloadJson}' -H 'Content-Type: application/json' http://192.168.3.101:5005/build-notify"
       }
     }
+  }
+  tools {
+    nodejs 'nodejs'
   }
 }
