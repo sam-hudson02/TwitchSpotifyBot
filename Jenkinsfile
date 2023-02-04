@@ -23,10 +23,10 @@ pipeline {
                     env.TSB_VERSION = version
                     def versionString = version.toString()
                     // add zero to start of version if needed
-                    if (versionStringFormatted.length() == 2) {
-                        versionStringFormatted = "0" + versionStringFormatted
+                    if (versionString.length() == 2) {
+                        versionString = "0" + versionStringFormatted
                     }
-                    
+
                     // add . between each number
                     def versionStringFormatted = versionString.split('').join('.')
                     
