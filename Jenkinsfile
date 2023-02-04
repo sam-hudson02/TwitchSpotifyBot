@@ -12,7 +12,7 @@ pipeline {
   stages {
     stage('pull code') {
       steps {
-        git(url: 'https://github.com/sam-hudson02/AquaByDesign', branch: 'main', credentialsId: 'personal_github')
+        git(url: 'https://github.com/sam-hudson02/TwitchSpotifyBot', branch: 'main', credentialsId: 'personal_github')
       }
     }
     stage('build docker image') {
