@@ -162,7 +162,7 @@ class AudioController:
         if self.req_timer is not None:
             self.req_timer.cancel()
 
-        if len(queue) > 0 and not skipped:
+        if len(queue) > 0:
             if self.queue_blocked:
                 return
             # get next song in queue
@@ -182,20 +182,9 @@ class AudioController:
                 self.next = {'id': playback_id, 'requester': next_song[4]}
             else:
                 self.req_timer = Timer(time_left + 3000, self.set_requester, args=[next_song])
-            self.add_to_history()
-
-        elif len(queue) > 0 and skipped:
-            if self.queue_blocked:
+            if skipped:
                 self.spot.sp.next_track()
-                return
-            # get next song in queue
-            next_song = queue[0]
-            # remove song from queue
-            self.db.remove_from_queue_by_id(next_song[0])
-            # play song
-            self.spot.sp.start_playback(uris=[next_song[5]])
-            # update context
-            self.req_timer = Timer(time_left + 3000, self.set_requester, args=[next_song])
+            self.add_to_history()
 
         elif self.context.playing_queue:
             # if no songs are in queue, play the playlist
