@@ -3,6 +3,7 @@ tests/__pycache__
 .idea
 /secret
 /data
+/env
 src/db-test.py
 /.vscode
 .prettierignore

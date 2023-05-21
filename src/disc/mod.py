@@ -23,7 +23,7 @@ class ModCog(commands.Cog):
         command = ctx.command.name
         self.log.req(user, request, command)
         roles = [role.name for role in ctx.user.roles]
-        if not 'DJ' in roles:
+        if 'DJ' not in roles:
             raise NotAuthorized('DJ')
 
     def check():
@@ -34,15 +34,15 @@ class ModCog(commands.Cog):
                 return await func(self, *args, **kwargs)
             return wrapped
         return wrapper
-    
+
     async def cog_app_command_error(self, ctx, error) -> None:
         error = getattr(error, 'original', error)
         if isinstance(error, NotAuthorized):
-            resp = f'Sorry, you need the role "DJ" to use this command.'
+            resp = 'Sorry, you need the role "DJ" to use this command.'
         elif isinstance(error, DBError):
-            resp = f'a database error occurred while processing your request'
+            resp = 'a database error occurred while processing your request'
         else:
-            resp = f'An unknown error occurred while processing your request'
+            resp = 'An unknown error occurred while processing your request'
         await ctx.response.send_message(content=resp, ephemeral=True)
         self.log.resp(resp)
         self.log.error(error)
@@ -52,7 +52,7 @@ class ModCog(commands.Cog):
     async def skip(self, ctx):
         if self.settings.active and self.ac.context.live:
             await self.ac.play_next(skipped=True)
-            resp = f'Skipping current track!'
+            resp = 'Skipping current track!'
         else:
             resp = 'Nothing to skip!'
 
@@ -63,22 +63,21 @@ class ModCog(commands.Cog):
     @check()
     async def clear_queue(self, interaction: discord.Interaction):
         self.db.clear_queue()
-        resp = f'Queue has been cleared!'
+        resp = 'Queue has been cleared!'
         await interaction.response.send_message(content=resp, ephemeral=True)
         self.log.resp(resp)
-    
+
     @discord.app_commands.command(name='bump', description='Moves a track to the top of the queue ')
     @discord.app_commands.describe(request_id='end the request id of the track')
     @check()
     async def bump(self, interaction: discord.Interaction, request_id: int):
         if self.db.move_request_pos(request_id):
-            resp = f'Track moved to top of the queue'
+            resp = 'Track moved to top of the queue'
         else:
-            resp = f'Could not find track in queue'
+            resp = 'Could not find track in queue'
         await interaction.response.send_message(content=resp, ephemeral=True)
         self.log.resp(resp)
-    
-    
+
     @discord.app_commands.command(name='remove-request', description='Remove song request from queue display by track name. (admin only)')
     @discord.app_commands.describe(req_id='enter request id')
     @check()

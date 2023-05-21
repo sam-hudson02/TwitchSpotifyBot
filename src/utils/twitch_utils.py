@@ -1,6 +1,7 @@
 from utils.errors import TimeNotFound, TargetNotFound
 from utils.db_handler import DB
 
+
 def target_finder(db: DB, request: str) -> str:
     words = request.split(' ')
     for word in words:
@@ -13,6 +14,7 @@ def target_finder(db: DB, request: str) -> str:
             db.check_user_exists(target)
             return target
     raise TargetNotFound
+
 
 def time_finder(request: str) -> dict:
     units = {'s': 1, 'm': 60, 'h': 3600, 'd': 86400}
@@ -27,7 +29,7 @@ def time_finder(request: str) -> dict:
     unit = 'm'
     request = request.strip(unit)
     try:
-        request = int(request)
+        time = int(request)
     except ValueError:
         raise TimeNotFound
-    return {'time': request, 'unit': unit}
+    return {'time': time, 'unit': unit}
