@@ -4,10 +4,13 @@ from twitchio.ext import commands, routines
 from AudioController.audio_controller import AudioController
 from utils.errors import NotActive, BadPerms, UserBanned
 from utils import Settings, DB, Log, Perms, get_username, get_message
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from twitch_bot import TwitchBot
 
 
 class OnlineCog(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: 'TwitchBot'):
         self.bot = bot
         self.log: Log = bot.log
         self.db: DB = bot.db
@@ -171,10 +174,13 @@ class OnlineCog(commands.Cog):
         if resp is not None:
             await self.bot.reply(ctx, resp)
 
-    async def add_rate(self, rater):
+    async def add_rate(self, rater: str):
         song_context = self.ac.context
-        if not song_context['playing_queue']:
-            return None
+        if not song_context.playing_queue:
+            return
+
+        if not song_context.requester:
+            return
 
         # keeps record what user have rated current track so users can't rate current more than once
         if (song_context.track, song_context.artist) != (self.current_rates['track'],

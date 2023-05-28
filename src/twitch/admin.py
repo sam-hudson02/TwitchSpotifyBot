@@ -1,10 +1,13 @@
 from twitchio.ext import commands
 from utils.errors import NotAuthorized
 from utils import target_finder, Settings, DB, Log, get_message
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from twitch_bot import TwitchBot
 
 
 class AdminCog(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: "TwitchBot"):
         self.bot = bot
         self.log: Log = bot.log
         self.db: DB = bot.db
@@ -27,13 +30,15 @@ class AdminCog(commands.Cog):
         try:
             new_veto_pass = int(request)
             if new_veto_pass < 2:
-                self.bot.reply(ctx, 'Veto pass must be at least 2')
+                await self.bot.reply(ctx, 'Veto pass must be at least 2')
             else:
                 self.settings.set_veto_pass(int(request))
-                self.bot.reply(ctx,
-                               f'Veto pass has been set to {new_veto_pass}')
+                await self.bot.reply(ctx,
+                                     'Veto pass has been set to '
+                                     f'{new_veto_pass}')
         except ValueError:
-            self.bot.reply(ctx, 'Could not find a number in your command')
+            await self.bot.reply(ctx, 'Could not find a number in your '
+                                 'command')
 
     def set_active(self, active: bool):
         self.settings.set_active(active)

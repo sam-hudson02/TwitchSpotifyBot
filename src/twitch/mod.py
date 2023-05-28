@@ -2,10 +2,13 @@ from prisma.models import User
 from twitchio.ext import commands
 from utils.errors import NotAuthorized, NotActive
 from utils import Timer, time_finder, get_message, target_finder, Settings, DB, Log, Perms, get_username
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from twitch_bot import TwitchBot
 
 
 class ModCog(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: 'TwitchBot'):
         self.bot = bot
         self.log: Log = bot.log
         self.db: DB = bot.db
@@ -70,7 +73,7 @@ class ModCog(commands.Cog):
         target_username = target_finder(request)
 
         await self.db.unban_user(target_username)
-        await self.bot.reply(f'@{target_username} has been unbanned!')
+        await self.bot.reply(ctx, f'@{target_username} has been unbanned!')
 
     @commands.command(name='sp-followers')
     async def followers_only(self, ctx: commands.Context):

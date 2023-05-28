@@ -1,11 +1,13 @@
 from twitchio.ext import commands
 from utils import Settings, DB, Log, Perms
-
 from utils.twitch_utils import get_username
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from twitch_bot import TwitchBot
 
 
 class OfflineCog(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: 'TwitchBot'):
         self.bot = bot
         self.settings: Settings = bot.settings
         self.check_user = bot.check_user
