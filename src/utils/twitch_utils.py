@@ -1,8 +1,7 @@
 from utils.errors import TimeNotFound, TargetNotFound
-from utils.db_handler import DB
 
 
-def target_finder(db: DB, request: str) -> str:
+def target_finder(request: str) -> str:
     words = request.split(' ')
     for word in words:
         if word.startswith('@'):
@@ -11,7 +10,6 @@ def target_finder(db: DB, request: str) -> str:
             target = target.strip('\n')
             target = target.strip('\r')
             target = target.strip(' ')
-            db.check_user_exists(target)
             return target
     raise TargetNotFound
 
@@ -33,3 +31,14 @@ def time_finder(request: str) -> dict:
     except ValueError:
         raise TimeNotFound
     return {'time': time, 'unit': unit}
+
+
+def get_message(ctx):
+    return ctx.message.content.strip(str(ctx.prefix + ctx.command.name))
+
+
+def get_username(ctx):
+    username = ctx.author.name
+    if username is None:
+        raise ValueError('Username not found.')
+    return username.lower()

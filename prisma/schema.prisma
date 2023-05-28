@@ -1,0 +1,30 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-py"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  username   String  @unique
+  ban        Boolean @default(false)
+  mod        Boolean @default(false)
+  admin      Boolean @default(false)
+  requests   Int     @default(0)
+  rates      Int     @default(0)
+  ratesGiven Int     @default(0)
+}
+
+model Queue {
+  id        Int    @id @default(autoincrement())
+  name      String
+  artist    String
+  requester String
+  url       String
+  position  Int
+}

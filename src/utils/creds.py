@@ -60,23 +60,17 @@ class TwitchCreds:
 
 class DiscordCreds:
     def __init__(self):
-        self.__token = get_optional_str_env('DISCORD_TOKEN')
-        self.__queue_channel_id = get_optional_int_env(
-            'DISCORD_QUEUE_CHANNEL_ID')
-        self.__leaderboard_channel_id = get_optional_int_env(
-            'DISCORD_LEADERBOARD_CHANNEL_ID')
+        self.__queue_webhook = get_optional_str_env('DISCORD_QUEUE_WEBHOOK')
+        self.__leaderboard_webhook = get_optional_str_env(
+            'DISCORD_LEADERBOARD_WEBHOOK')
 
     @property
-    def token(self):
-        return self.__token
+    def queue_webhook(self):
+        return self.__queue_webhook
 
     @property
-    def queue_channel_id(self):
-        return self.__queue_channel_id
-
-    @property
-    def leaderboard_channel_id(self):
-        return self.__leaderboard_channel_id
+    def leaderboard_webhook(self):
+        return self.__leaderboard_webhook
 
 
 class SpotifyCreds:
