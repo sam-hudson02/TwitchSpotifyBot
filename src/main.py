@@ -15,7 +15,7 @@ def init_data_dir():
 
 
 async def start_twitch_bot(creds: Creds, settings: Settings, ctx: Context,
-                           ac_log: Log):
+                           ac_log: Log, loop: asyncio.AbstractEventLoop = None):
     service = Wrapper(creds.twitch)
 
     db = DB()
@@ -28,12 +28,15 @@ async def start_twitch_bot(creds: Creds, settings: Settings, ctx: Context,
     ac = AudioController(db, s_bot, ctx, ac_log)
 
     t_bot = TwitchBot(service, db, settings, ac, creds.twitch)
-    loop = asyncio.get_event_loop()
+    if loop is None:
+        loop = asyncio.get_event_loop()
+
     loop.create_task(t_bot.start())
     loop.create_task(ac.update())
 
 
-async def start_discord_hook(creds: Creds, settings: Settings):
+async def start_discord_hook(creds: Creds, settings: Settings,
+                             loop: asyncio.AbstractEventLoop = None):
     disc_creds = creds.discord
     channel = creds.twitch.channel
 
@@ -49,7 +52,8 @@ async def start_discord_hook(creds: Creds, settings: Settings):
     discord_hook = DiscordHook(disc_creds.queue_webhook,
                                disc_creds.leaderboard_webhook,
                                db, channel, disc_log)
-    loop = asyncio.get_event_loop()
+    if loop is None:
+        loop = asyncio.get_event_loop()
     loop.create_task(discord_hook.update())
 
 
