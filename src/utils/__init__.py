@@ -1,5 +1,5 @@
 from utils.db import DB
-from utils.logger import Log
+from utils.logger import Log, init_dirs
 from utils.settings import Settings, Perms
 from utils.creds import Creds, SpotifyCreds, TwitchCreds, DiscordCreds
 from utils.async_timer import Timer

@@ -10,6 +10,7 @@ class Spotify:
         self.user = creds.username
         self.client_id = creds.client_id
         self.secret = creds.client_secret
+        self.scopes = creds.scopes
         self.token = self.get_token()
         self.sp = self.auth()
         self.sp.search(q='test')
@@ -19,15 +20,12 @@ class Spotify:
         handler = spotipy.oauth2.CacheFileHandler(cache_path=cache_path,
                                                   username=self.user)
 
-        scopes = 'user-modify-playback-state user-read-playback-state ' \
-                 'user-read-currently-playing user-read-playback-position' \
-                 ' user-read-recently-played streaming'
-
         return spotipy.SpotifyOAuth(client_id=self.client_id,
                                     client_secret=self.secret,
                                     redirect_uri='https://open.spotify.com/',
                                     cache_handler=handler,
-                                    open_browser=False, scope=scopes)
+                                    open_browser=False,
+                                    scope=self.scopes)
 
     def auth(self):
         return spotipy.Spotify(auth_manager=self.token)

@@ -83,6 +83,9 @@ class SpotifyCreds:
         self.__client_id = get_str_env('SPOTIFY_CLIENT_ID')
         self.__client_secret = get_str_env('SPOTIFY_SECRET')
         self.__username = get_str_env('SPOTIFY_USERNAME')
+        self.scopes = 'user-modify-playback-state user-read-playback-state ' \
+            'user-read-currently-playing user-read-playback-position' \
+            ' user-read-recently-played streaming'
 
     @property
     def client_id(self):
