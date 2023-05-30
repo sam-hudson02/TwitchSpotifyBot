@@ -1,7 +1,6 @@
 import json
-import time
 from enum import Enum
-from utils.errors import *
+from utils.errors import SettingsError
 import os
 
 
@@ -46,58 +45,35 @@ class Settings:
         with open('./data/settings.json', 'w') as s_file:
             json.dump(settings, s_file, indent=4)
 
-    def setter(func):
-        def wrapper(self, *args, **kwargs):
-            func(self, *args, **kwargs)
-            if kwargs.get('save', True):
-                self.save_settings()
-        return wrapper
-
-    def pull_settings(self, try_count=0):
+    def pull_settings(self):
         if not os.path.exists('./data/settings.json'):
             self.save_settings()
 
         with open('./data/settings.json') as s_file:
             try:
                 return json.load(s_file)
-            except json.decoder.JSONDecodeError as e:
-                if try_count > 3:
-                    self.log.error(
-                        'Error loading settings.json, too many tries.')
-                    raise e
-                self.log.error(
-                    'Error loading settings.json, trying again in 5 seconds.')
-                time.sleep(5)
-                return self.pull_settings(try_count + 1)
+            except json.decoder.JSONDecodeError:
+                raise Exception('Settings file is corrupted.')
 
     def set_settings(self):
         settings = self.pull_settings()
         self.set_active(bool(settings.get('active', False)), save=False)
-        self.set_permission(settings.get(
-            'sr permission', Perms.ALL), save=False)
-        self.set_discord_bot(
-            bool(settings.get('discord bot', True)), save=False)
+        self.set_permission(settings.get('sr permission', Perms.ALL),
+                            save=False)
         self.set_log(bool(settings.get('log', False)), save=False)
         self.set_dev_mode(bool(settings.get('dev mode', False)), save=False)
         self.set_veto_pass(int(settings.get('veto pass', 5)), save=False)
-        self.set_leaderboard_reset(settings.get(
-            'leaderboard reset', Reset.OFF), save=False)
-        self.set_leaderboard_rewards(settings.get(
-            'leaderboard rewards', []), save=False)
-        self.set_leaderboard_announce(
-            bool(settings.get('leaderboard announce', False)), save=False)
 
-    @setter
-    def set_active(self, active, save=True):
-        if type(active) is not bool:
-            raise SettingsError('Active must be a boolean.')
+    def set_active(self, active: bool, save=True):
         self.__active = active
+        if save:
+            self.save_settings()
 
-    @setter
     def set_dev_mode(self, dev_mode: bool, save=True):
         self.__dev_mode = dev_mode
+        if save:
+            self.save_settings()
 
-    @setter
     def set_permission(self, permission, save=True):
         if type(permission) is Perms:
             self.__permission = permission
@@ -108,62 +84,23 @@ class Settings:
 
         permission = permission.lower()
         if permission not in ['all', 'subs', 'followers', 'privileged']:
-            raise SettingsError(
-                'Permission must be either "all", "subs", "followers" or "privileged".')
+            raise SettingsError('Permission must be either "all", \
+                                "subs", "followers" or "privileged".')
         self.__permission = Perms(permission)
+        if save:
+            self.save_settings()
 
-    @setter
-    def set_veto_pass(self, veto_pass, save=True):
-        if type(veto_pass) is not int:
-            raise SettingsError('Veto pass must be an integer.')
-        elif veto_pass < 2:
+    def set_veto_pass(self, veto_pass: int, save=True):
+        if veto_pass <= 1:
             raise SettingsError('Veto pass must be greater than 1.')
         self.__veto_pass = veto_pass
+        if save:
+            self.save_settings()
 
-    @setter
-    def set_leaderboard_reset(self, leaderboard_reset, save=True):
-        if type(leaderboard_reset) is Reset:
-            self.__leaderboard_reset = leaderboard_reset
-            return
-
-        if type(leaderboard_reset) is not str:
-            raise SettingsError('Leaderboard reset must be a string.')
-
-        leaderboard_reset = leaderboard_reset.lower()
-
-        accepted = ['weekly', 'monthly', 'off']
-        if leaderboard_reset not in accepted:
-            raise SettingsError(
-                f"Leaderboard reset must be either {' or '.join(accepted)}")
-        self.__leaderboard_reset = Reset(leaderboard_reset)
-
-    @setter
-    def set_leaderboard_rewards(self, leaderboard_rewards, save=True):
-        if type(leaderboard_rewards) is not list:
-            raise SettingsError('Leaderboard rewards must be a list.')
-        for item in leaderboard_rewards:
-            if item not in ['vip', 'sp_mod']:
-                raise SettingsError(
-                    'Leaderboard rewards must only contain "vip" or "sp_mod".')
-        self.__leaderboard_rewards = leaderboard_rewards
-
-    @setter
-    def set_leaderboard_announce(self, leaderboard_announce, save=True):
-        if type(leaderboard_announce) is not bool:
-            raise SettingsError('Leaderboard announce must be a boolean.')
-        self.__leaderboard_announce = leaderboard_announce
-
-    @setter
-    def set_discord_bot(self, discord_bot, save=True):
-        if type(discord_bot) is not bool:
-            raise SettingsError('Discord bot must be a boolean.')
-        self.__discord_bot = discord_bot
-
-    @setter
-    def set_log(self, log, save=True):
-        if type(log) is not bool:
-            raise SettingsError('Log must be a boolean.')
+    def set_log(self, log: bool, save=True):
         self.__log = log
+        if save:
+            self.save_settings()
 
     @property
     def active(self):
