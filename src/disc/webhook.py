@@ -54,15 +54,6 @@ class DiscordHook:
         else:
             return 'Problem with queue :/'
 
-    def search_queue_message(self):
-        # search the queue message in the channel
-        # if it exists return it 
-
-        if self.queue_webhook is None:
-            return
-
-        messages = self.queue_webhook.channel.messages
-
     async def embed_leaderboard(self):
         leaderboard = await self.db.get_leaderboard()
         embed = Embed(
@@ -127,3 +118,17 @@ class DiscordHook:
             await self.check_queue()
             await self.check_leaderboard()
             await asyncio.sleep(2)
+
+    async def cleanup(self):
+        if self.q_message is not None:
+            await self.q_message.delete()
+        if self.l_message is not None:
+            await self.l_message.delete()
+        # disconnect from discord
+        if self.leaderboard_webhook is not None:
+            await self.leaderboard_webhook.session.close()
+        if self.queue_webhook is not None:
+            await self.queue_webhook.session.close()
+
+    def __del__(self):
+        asyncio.run(self.cleanup())
