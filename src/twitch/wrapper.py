@@ -7,23 +7,21 @@ import threading as th
 
 
 class Wrapper:
-    def __init__(self, creds: TwitchCreds):
+    def __init__(self, creds: TwitchCreds, sock: Optional[socket.socket] = None):
         self.creds = creds
         self._on_message: Callable[[Message], Awaitable[None]] = self.empty
         self._on_live: Callable[[None], Awaitable[None]] = self.empty
         self._on_offline: Callable[[None], Awaitable[None]] = self.empty
         self.server = 'irc.chat.twitch.tv'
         self.port = 6667
-        self.sock: socket.socket | None = None
+        self.sock: Optional[socket.socket] = sock
 
     async def empty(self, *args, **kwargs):
         print("empty")
         pass
 
-    async def connect(self, sock: Optional[socket.socket] = None):
-        if sock is not None:
-            self.sock = sock
-        else:
+    async def connect(self):
+        if self.sock is None:
             self.sock = socket.socket()
         self.sock.connect((self.server, self.port))
         self.sock.send('CAP REQ :twitch.tv/membership twitch.tv/tags\n'
@@ -35,6 +33,12 @@ class Wrapper:
         print(resp)
         await self._on_join(self.creds.channel)
 
+    def disconnect(self):
+        if self.sock is None:
+            return
+        self.sock.send(f"PART #{self.creds.channel}\n".encode("utf-8"))
+        self.sock.close()
+
     async def start(self):
         await self.connect()
         th.Thread(target=self.run_listen).start()
@@ -42,7 +46,8 @@ class Wrapper:
     def run_listen(self):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(self.listen())
+        loop.create_task(self.listen())
+        loop.run_forever()
 
     async def send(self, message: str):
         if self.sock is None:
@@ -65,15 +70,20 @@ class Wrapper:
     def is_message(self, resp: str) -> bool:
         return resp.startswith("@")
 
+    async def read(self):
+        if self.sock is None:
+            print("no socket")
+            return
+        print("listening")
+        resp = self.sock.recv(2048).decode("utf-8")
+        print(resp)
+        if resp.startswith("PING"):
+            self.sock.send("PONG\n".encode("utf-8"))
+        elif len(resp) > 0 and self.is_message(resp):
+            msg = Message(resp, self)
+            await self._on_message(msg)
+
     async def listen(self):
+        print("connected")
         while True:
-            if self.sock is None:
-                print("no socket")
-                return
-            resp = self.sock.recv(2048).decode("utf-8")
-            print(resp)
-            if resp.startswith("PING"):
-                self.sock.send("PONG\n".encode("utf-8"))
-            elif len(resp) > 0 and self.is_message(resp):
-                msg = Message(resp, self)
-                await self._on_message(msg)
+            await self.read()

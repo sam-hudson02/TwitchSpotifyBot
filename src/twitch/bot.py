@@ -35,11 +35,14 @@ class Bot:
         await self.service.send('Sbotify is now online!')
 
     async def on_message(self, msg: Message) -> None:
-        print(msg.content)
-        if msg.content.startswith(self.prefix):
+        try:
             print(msg.content)
-            command = msg.content[len(self.prefix):].split(' ')[0]
-            await self.router.handle(msg, command)
+            if msg.content.startswith(self.prefix):
+                print(msg.content)
+                command = msg.content[len(self.prefix):].split(' ')[0]
+                await self.router.handle(msg, command)
+        except Exception as e:
+            await self.on_error(msg, e)
 
     async def start(self):
         print('loading cogs')
@@ -50,3 +53,10 @@ class Bot:
     async def load_cogs(self):
         for cog in self.cogs:
             await cog.load()
+
+    async def on_error(self, msg: Message, error: Exception):
+        print(error)
+        await msg.reply('An error occurred!')
+
+    def __del__(self):
+        self.service.disconnect()

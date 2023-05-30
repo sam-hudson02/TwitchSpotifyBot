@@ -1,23 +1,59 @@
-class TargetNotFound(Exception):
+class SongReqError(Exception):
+    def __str__(self):
+        return self.__class__.__name__
+
+
+class YoutubeLink(SongReqError):
     pass
 
 
-class TimeNotFound(Exception):
+class BadPerms(SongReqError):
+    def __init__(self, perm: str):
+        self.perm = perm
+
+
+class UnsupportedLink(SongReqError):
     pass
 
 
-class NotActive(Exception):
+class NotActive(SongReqError):
     pass
 
 
-class UserBanned(Exception):
+class UserBanned(SongReqError):
     pass
 
 
-class TrackAlreadyInQueue(Exception):
+class TrackNotFound(SongReqError):
+    pass
+
+
+class TrackAlreadyInQueue(SongReqError):
     def __init__(self, track: str, artist: str):
         self.track = track
         self.artist = artist
+
+
+class PlaybackError(Exception):
+    def __str__(self):
+        return self.__class__.__name__
+
+
+class NoCurrentTrack(PlaybackError):
+    pass
+
+
+class UtilError(Exception):
+    def __init__(self, message: str):
+        self.message = message
+
+
+class TargetNotFound(UtilError):
+    pass
+
+
+class TimeNotFound(UtilError):
+    pass
 
 
 class TrackRecentlyPlayed(Exception):
@@ -31,52 +67,24 @@ class NotAuthorized(Exception):
         self.clearance = clearance_required
 
 
-class UserAlreadyRole(Exception):
-    def __init__(self, target: str, role: str, has_role: bool):
-        self.target = target
-        self.role = role
-        self.has_role = has_role
-
-
-class TrackNotFound(Exception):
+class SetupError(Exception):
+    def __str__(self):
+        return self.__class__.__name__
     pass
 
 
-class NoCreds(Exception):
+class NoCreds(SetupError):
     def __init__(self, missing: str):
         print(f'No {missing} credential found.')
     pass
 
 
-class YoutubeLink(Exception):
-    pass
-
-
-class UnsupportedLink(Exception):
-    pass
-
-
-class DBError(Exception):
-    pass
-
-
-class NoCurrentTrack(Exception):
-    pass
-
-class WrongChannel(Exception):
-    pass
-
-class UserNotFound(Exception):
-    def __init__(self, user):
-        self.user = user
-
-class SettingsError(Exception):
+class SettingsError(SetupError):
     def __init__(self, message: str):
         self.message = message
 
-class BadLink(Exception):
-    pass
 
-class BadPerms(Exception):
-    def __init__(self, perm: str):
-        self.perm = perm
+class BadLink(Exception):
+    def __str__(self):
+        return self.__class__.__name__
+    pass
