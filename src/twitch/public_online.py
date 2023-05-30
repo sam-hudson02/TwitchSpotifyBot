@@ -1,35 +1,41 @@
-from prisma.models import User
-import twitchio
-from twitchio.ext import commands, routines
 from AudioController.audio_controller import AudioController
-from utils.errors import NotActive, BadPerms, UserBanned
-from utils import Settings, DB, Log, Perms, get_username, get_message
+from utils.errors import UserBanned
+from utils import Settings, DB, VetoVotes, RateTracker
 from typing import TYPE_CHECKING
+from twitch.cog import Cog
+from twitch.router import Context
+from utils.twitch_utils import check_permission
 if TYPE_CHECKING:
-    from twitch_bot import TwitchBot
+    from twitch.bot import Bot as TwitchBot
 
 
-class OnlineCog(commands.Cog):
+class OnlineCog(Cog):
     def __init__(self, bot: 'TwitchBot'):
+        super().__init__(bot)
         self.bot = bot
-        self.log: Log = bot.log
         self.db: DB = bot.db
         self.ac: AudioController = bot.ac
         self.settings: Settings = bot.settings
-        self.veto_votes = {'track': '', 'artist': '', 'votes': []}
-        self.current_rates = {'track': '', 'artist': '', 'raters': []}
+        self.veto_votes = VetoVotes(self.ac.context)
+        self.rate_tracker = RateTracker(self.ac.context, self.db)
 
-    async def cog_check(self, ctx: commands.Context) -> bool:
+    async def load(self):
+        self.bot.router.add_route('sr', self.sr, self)
+        self.bot.router.add_route('song', self.song_info, self)
+        self.bot.router.add_route('next', self.next_song, self)
+        self.bot.router.add_route('veto', self.veto, self)
+        self.bot.router.add_route('rate', self.rate, self)
+
+    async def before_invoke(self, ctx: Context) -> bool:
         if not self.settings.active:
-            raise NotActive
-        if not self.bot.is_live:
+            return False
+        if not self.ac.context.live:
             return False
         return True
 
-    @routines.routine(seconds=7.5)
     async def update_song_context(self):
         print('updating song context')
-        if not self.bot.is_live:
+        if not self.ac.context.live:
             print('not live')
             return
         if not self.settings.active:
@@ -37,165 +43,69 @@ class OnlineCog(commands.Cog):
             return
         await self.ac.update_context()
 
-    def _load_methods(self, bot) -> None:
-        super()._load_methods(bot)
-        self.cog_load()
+    async def sr(self, ctx: Context):
+        print('sr called')
+        # await check_permission(self.settings, ctx.chatter, ctx.user)
 
-    def cog_unload(self) -> None:
-        self.log.info('Online cog unloaded')
-        self.update_song_context.cancel()
-
-    def cog_load(self) -> None:
-        self.log.info('Online cog loaded')
-        print('starting update song context')
-        self.update_song_context.start()
-        print('finished update song context')
-
-    @commands.cooldown(1, 10, commands.Bucket.channel)
-    @commands.command(name='sr')
-    async def sr(self, ctx: commands.Context):
-        username = get_username(ctx)
-        request = get_message(ctx)
-        user = await self.db.get_user(username)
-
-        chatter = ctx.author
-        await self.check_permission(chatter, user)
-
-        if user.ban:
+        if ctx.user.ban:
             raise UserBanned
 
-        track, artist = await self.ac.add_to_queue(request, username)
+        track, artist = await self.ac.add_to_queue(ctx.content,
+                                                   ctx.user.username)
 
         if track is None:
-            await self.bot.reply(ctx, 'Your request could not be found on '
-                                 'spotify')
-            return False
+            await ctx.reply('Your request could not be found on '
+                            'spotify')
         else:
-            await self.bot.reply(ctx, f'{track} by {artist} has been added to the '
-                                 'queue!')
-            return True
+            await ctx.reply(f'{track} by {artist} has been added to the '
+                            'queue!')
 
-    async def check_permission(self, chatter: twitchio.Chatter, user: User):
-        perm: Perms = self.settings.permission
-        if chatter.is_broadcaster:
-            return
-        if perm is Perms.SUBS:
-            if not chatter.is_subscriber:
-                raise BadPerms('subscriber')
-        if perm is Perms.FOLLOWERS:
-            if not await self.is_follower(chatter):
-                raise BadPerms('follower')
-        if perm is Perms.PRIVILEGED:
-            if not await self.is_privileged(chatter, user):
-                raise BadPerms('mod, subscriber or vip')
-
-    async def is_follower(self, chatter: twitchio.Chatter):
-        user = await chatter.user()
-        following = await user.fetch_following()
-        is_follower = self.bot.channel_name in [
-            follow.to_user.name.lower() for follow in following]
-        return is_follower
-
-    async def is_privileged(self, chatter: twitchio.Chatter, user: User):
-        if user.mod or user.admin:
-            return True
-        elif chatter.is_vip:
-            return True
-        elif chatter.is_mod:
-            return True
-        elif chatter.is_subscriber:
-            return True
-        else:
-            return False
-
-    @commands.command(name='song', aliases=['song-info'])
-    async def song_info(self, ctx: commands.Context):
+    async def song_info(self, ctx: Context):
         if self.ac.context.track is None or self.ac.context.paused:
-            await self.bot.reply(ctx, "No song currently playing!")
+            await ctx.reply("No song currently playing!")
 
         elif self.ac.context.playing_queue:
-            await self.bot.reply(ctx, f"Currently playing "
-                                 f"{self.ac.context.track} by "
-                                 f"{self.ac.context.artist} as requested by "
-                                 f"@{self.ac.context.requester} !")
+            await ctx.reply(f"Currently playing "
+                            f"{self.ac.context.track} by "
+                            f"{self.ac.context.artist} as requested by "
+                            f"@{self.ac.context.requester} !")
         else:
-            await self.bot.reply(ctx, f"Currently playing "
-                                 f"{self.ac.context.track} by "
-                                 f"{self.ac.context.artist}!")
+            await ctx.reply(f"Currently playing "
+                            f"{self.ac.context.track} by "
+                            f"{self.ac.context.artist}!")
 
-    @commands.command(name='sp-next', aliases=['next'])
-    async def next_song(self, ctx: commands.Context):
+    async def next_song(self, ctx: Context):
         next_song = await self.db.get_next_song()
         if next_song is None:
-            await self.bot.reply(ctx, 'No songs in queue!')
+            await ctx.reply('No songs in queue!')
             return
-        await self.bot.reply(ctx, f'Next song is {next_song.name} by '
-                             f'{next_song.artist} as requested by '
-                             f'{next_song.requester}!')
+        await ctx.reply(f'Next song is {next_song.name} by '
+                        f'{next_song.artist} as requested by '
+                        f'{next_song.requester}!')
 
-    @ commands.command(name='veto', aliases=['vote-skip'])
-    async def veto(self, ctx: commands.Context):
-        username = get_username(ctx)
-        song_context = self.ac.context.get_context()
-
-        resp, skip = self.add_veto(song_context, username)
-        if resp is None:
+    async def veto(self, ctx: Context):
+        if self.veto_votes.user_voted(ctx.user.username):
+            await ctx.reply('You have already voted to veto the current song!')
             return
-
-        await self.bot.reply(ctx, resp)
-        if skip:
-            await self.ac.play_next(skipped=True)
-
-    def add_veto(self, song_context, user):
-        if song_context is None:
-            return None, False
-
-        if (song_context['track'], song_context['artist']) != (self.veto_votes['track'], self.veto_votes['artist']):
-            self.veto_votes['track'] = song_context['track']
-            self.veto_votes['artist'] = song_context['artist']
-            self.veto_votes['votes'] = []
-
-        if user not in self.veto_votes['votes']:
-            self.veto_votes['votes'].append(user)
-        else:
-            return 'You have already voted to veto the current song!', False
-
-        votes = len(self.veto_votes['votes'])
+        votes = self.veto_votes.add_vote(ctx.user.username)
         if votes >= self.settings.veto_pass:
-            return f'{song_context["track"]} by {song_context["artist"]} has been vetoed by chat LUL', True
+            await ctx.reply(f'{self.ac.context.track} by '
+                            f'{self.ac.context.artist} has been vetoed by chat'
+                            ' LUL')
+            await self.ac.play_next(skipped=True)
         else:
-            return f'{votes} out of {self.settings.veto_pass} chatters have voted to skip the current song!', False
+            await ctx.reply(f'{votes} out of {self.settings.veto_pass} '
+                            'chatters have voted to skip the current song!')
 
-    @ commands.command(name='rate', aliases=['like'])
-    async def rate(self, ctx: commands.Context):
-        username = get_username(ctx)
-
-        resp = await self.add_rate(username)
-        if resp is not None:
-            await self.bot.reply(ctx, resp)
-
-    async def add_rate(self, rater: str):
-        song_context = self.ac.context
-        if not song_context.playing_queue:
+    async def rate(self, ctx: Context):
+        if self.rate_tracker.user_rated(ctx.user.username):
+            await ctx.reply('You have already rated this song!')
             return
 
-        if not song_context.requester:
+        if self.rate_tracker.is_requester(ctx.user.username):
+            await ctx.reply('You cannot rate your own song! LUL')
             return
 
-        # keeps record what user have rated current track so users can't rate current more than once
-        if (song_context.track, song_context.artist) != (self.current_rates['track'],
-                                                         self.current_rates['artist']):
-            self.current_rates['track'] = song_context.track
-            self.current_rates['artist'] = song_context.artist
-            self.current_rates['raters'] = []
-
-        if rater in self.current_rates['raters']:
-            return None
-
-        if song_context.requester == rater:
-            return "Sorry, you can't rate your own requests LUL"
-        else:
-            await self.db.add_rate(receiver=song_context.requester,
-                                   giver=rater)
-            self.current_rates['raters'].append(rater)
-            return f"@{rater} liked @{song_context.requester}'s song request!"
+        await self.rate_tracker.add_rate(ctx.user.username)
+        await ctx.reply(f'@{ctx.user.username} has rated '
+                        f'@{self.ac.context.requester}\'s song ')

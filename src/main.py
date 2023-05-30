@@ -1,13 +1,12 @@
 import os
 from AudioController.spotify_api import Spotify
-from twitch.twitch_bot import TwitchBot
+from twitch.bot import Bot as TwitchBot
 from disc.webhook import DiscordHook
 from os.path import exists
 from AudioController.audio_controller import AudioController, Context
+from twitch.wrapper import Wrapper
 from utils import Log, DB, Settings, Creds
 import asyncio
-
-from utils.creds import DiscordCreds
 
 
 def init_data_dir():
@@ -17,7 +16,7 @@ def init_data_dir():
 
 async def start_twitch_bot(creds: Creds, settings: Settings, ctx: Context,
                            ac_log: Log):
-    twitch_log = Log('Twitch', settings.log)
+    service = Wrapper(creds.twitch)
 
     db = DB()
     await db.connect()
@@ -28,7 +27,7 @@ async def start_twitch_bot(creds: Creds, settings: Settings, ctx: Context,
 
     ac = AudioController(db, s_bot, ctx, ac_log)
 
-    t_bot = TwitchBot(creds.twitch, twitch_log, db, ac, settings)
+    t_bot = TwitchBot(service, db, settings, ac, creds.twitch)
     loop = asyncio.get_event_loop()
     loop.create_task(t_bot.start())
     loop.create_task(ac.update())

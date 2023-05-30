@@ -38,10 +38,14 @@ class DB:
             },
         )
 
-    async def get_user(self, username) -> User:
+    async def get_user(self, username, admin=False, mod=False) -> User:
         user = await self.client.user.find_unique(where={"username": username})
         if user is None:
-            user = await self.client.user.create(data={"username": username})
+            user = await self.client.user.create(data={
+                "username": username,
+                "admin": admin,
+                "mod": mod,
+            })
         return user
 
     async def get_user_position(self, username,
@@ -87,7 +91,7 @@ class DB:
     async def get_next_song(self) -> Queue | None:
         return await self.client.queue.find_first(
             where={},
-            order={"position": "desc"},
+            order={"position": "asc"},
         )
 
     async def check_if_in_queue(self, song: SongReq) -> bool:
@@ -130,7 +134,7 @@ class DB:
     async def get_queue(self) -> list[Queue]:
         return await self.client.queue.find_many(
             where={},
-            order={"position": "desc"},
+            order={"position": "asc"},
         )
 
     async def clear_queue(self) -> None:

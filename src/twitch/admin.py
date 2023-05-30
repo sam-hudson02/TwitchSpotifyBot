@@ -1,108 +1,99 @@
-from twitchio.ext import commands
 from utils.errors import NotAuthorized
-from utils import target_finder, Settings, DB, Log, get_message
+from utils import target_finder, Settings, DB
+from twitch.cog import Cog
+from twitch.router import Context
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from twitch_bot import TwitchBot
+    from twitch.bot import Bot as TwitchBot
 
 
-class AdminCog(commands.Cog):
+class AdminCog(Cog):
     def __init__(self, bot: "TwitchBot"):
         self.bot = bot
-        self.log: Log = bot.log
         self.db: DB = bot.db
         self.ac = bot.ac
         self.settings: Settings = bot.settings
-        self.channel_name = bot.channel_name
+        self.channel = bot.channel
 
-    async def cog_check(self, ctx: commands.Context) -> bool:
-        if ctx.author.name is None:
-            raise NotAuthorized(clearance_required='mod')
-        username = ctx.author.name.lower()
-        user = await self.db.get_user(username)
-        if not user.mod:
+    async def before_invoke(self, ctx: Context) -> bool:
+        if not ctx.user.mod:
             raise NotAuthorized(clearance_required='mod')
         return True
 
-    @commands.command(name='sp-set-veto-pass')
-    async def set_veto_pass(self, ctx: commands.Context):
-        request = get_message(ctx)
+    async def load(self):
+        self.bot.router.add_route('set-veto', self.set_veto_pass, self)
+        self.bot.router.add_route('sr-mod', self.add_mod, self)
+        self.bot.router.add_route('sr-unmod', self.remove_mod, self)
+        self.bot.router.add_route('sr-on', self.sp_on, self)
+        self.bot.router.add_route('sr-off', self.sp_off, self)
+        self.bot.router.add_route('sr-reset', self.leaderboard_reset, self)
+        self.bot.router.add_route('clear', self.clear_queue, self)
+        self.bot.router.add_route('dev-on', self.dev_on, self)
+        self.bot.router.add_route('dev-off', self.dev_off, self)
+
+    async def set_veto_pass(self, ctx: Context):
         try:
-            new_veto_pass = int(request)
+            new_veto_pass = int(ctx.content)
             if new_veto_pass < 2:
-                await self.bot.reply(ctx, 'Veto pass must be at least 2')
+                await ctx.reply('Veto pass must be at least 2')
             else:
-                self.settings.set_veto_pass(int(request))
-                await self.bot.reply(ctx,
-                                     'Veto pass has been set to '
-                                     f'{new_veto_pass}')
+                self.settings.set_veto_pass(int(ctx.content))
+                await ctx.reply('Veto pass has been set to '
+                                f'{new_veto_pass}')
         except ValueError:
-            await self.bot.reply(ctx, 'Could not find a number in your '
-                                 'command')
+            await ctx.reply('Could not find a number in your '
+                            'command')
 
     def set_active(self, active: bool):
         self.settings.set_active(active)
         self.ac.context.active = active
 
     def set_live(self, live: bool):
-        self.bot.is_live = live
         self.ac.context.live = live
 
-    @commands.command(name='sp-mod')
-    async def add_mod(self, ctx: commands.Context):
-        request = get_message(ctx)
-        target = target_finder(request)
+    async def add_mod(self, ctx: Context):
+        target = target_finder(ctx.content)
 
         await self.db.mod_user(target)
-        await self.bot.reply(ctx, f'@{target} is now a mod! Type !sp-help '
-                             'to see all the available commands!')
+        await ctx.reply(f'@{target} is now a mod! Type !sp-help '
+                        'to see all the available commands!')
 
-    @commands.command(name='sp-unmod')
-    async def remove_mod(self, ctx: commands.Context):
-        request = get_message(ctx)
-        target = target_finder(request)
+    async def remove_mod(self, ctx: Context):
+        target = target_finder(ctx.content)
 
         await self.db.unmod_user(target)
-        await self.bot.reply(ctx, f'@{target} is no longer a mod.')
+        await ctx.reply(f'@{target} is no longer a mod.')
 
-    @commands.command(name='sp-on')
-    async def sp_on(self, ctx: commands.Context):
+    async def sp_on(self, ctx: Context):
         if not self.settings.active:
             self.set_active(True)
-            resp = 'Song request have been turned on!'
-            await ctx.reply(resp)
-            self.log.resp(resp)
-        elif self.bot.is_live:
-            await self.bot.reply(ctx, "Song request are already turned on but "
-                                 f"won't be taken till {self.channel_name} is "
-                                 "live.")
+            await ctx.reply('Song request have been turned on!')
+        elif self.ac.context.live:
+            await ctx.reply("Song request are already turned on but "
+                            f"won't be taken till {self.channel} is "
+                            "live.")
         else:
-            await self.bot.reply(ctx, 'Song request are already turned on.')
+            await ctx.reply('Song request are already turned on.')
 
-    @commands.command(name='sp-off')
-    async def sp_off(self, ctx: commands.Context):
+    async def sp_off(self, ctx: Context):
         if self.settings.active:
             self.set_active(False)
-            await self.bot.reply(ctx, 'Song request have been turned off!')
+            await ctx.reply('Song request have been turned off!')
         else:
-            await self.bot.reply(ctx, 'Song request are already turned off.')
+            await ctx.reply('Song request are already turned off.')
 
-    @commands.command(name='sp-lb-reset')
-    async def leaderboard_reset(self, ctx: commands.Context):
+    async def leaderboard_reset(self, ctx: Context):
         await self.db.reset_all_user_stats()
-        await self.bot.reply(ctx, 'Leaderboard has been reset!')
+        await ctx.reply('Leaderboard has been reset!')
 
-    @commands.command(name='sp-clear-queue')
-    async def clear_queue(self, ctx: commands.Context):
+    async def clear_queue(self, ctx: Context):
         await self.db.clear_queue()
-        await self.bot.reply(ctx, 'Queue has been cleared!')
+        await ctx.reply('Queue has been cleared!')
 
-    @commands.command(name='sp-dev-on')
-    async def dev_on(self, ctx: commands.Context):
+    async def dev_on(self, ctx: Context):
         self.settings.set_dev_mode(True)
-        await self.bot.reply(ctx, 'Dev mode has been turned on!')
+        await ctx.reply('Dev mode has been turned on!')
 
-    @commands.command(name='sp-dev-off')
-    async def dev_off(self, ctx: commands.Context):
+    async def dev_off(self, ctx: Context):
         self.settings.set_dev_mode(False)
-        await self.bot.reply(ctx, 'Dev mode has been turned off!')
+        await ctx.reply('Dev mode has been turned off!')

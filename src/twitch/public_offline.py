@@ -1,36 +1,38 @@
-from twitchio.ext import commands
-from utils import Settings, DB, Log, Perms
-from utils.twitch_utils import get_username
+from twitch.cog import Cog
+from utils import Settings, DB, Perms
 from typing import TYPE_CHECKING
+from twitch.router import Context
 if TYPE_CHECKING:
-    from twitch_bot import TwitchBot
+    from twitch.bot import Bot as TwitchBot
 
 
-class OfflineCog(commands.Cog):
+class OfflineCog(Cog):
     def __init__(self, bot: 'TwitchBot'):
+        super().__init__(bot)
         self.bot = bot
         self.settings: Settings = bot.settings
-        self.check_user = bot.check_user
-        self.log: Log = bot.log
         self.db: DB = bot.db
 
-    @commands.command(name='help')
-    async def help(self, ctx: commands.Context):
-        await ctx.send('A list of commands can be found here: '
-                       'https://github.com/sam-hudson02/TwitchSpotifyBot/blob/main/Commands.md')
+    async def load(self):
+        self.bot.router.add_route('help', self.help)
+        self.bot.router.add_route('sr-status', self.sp_status)
+        self.bot.router.add_route('leader', self.leader)
+        self.bot.router.add_route('stats', self.stats)
 
-    @commands.command(name='sp-status')
-    async def sp_status(self, ctx: commands.Context):
+    async def help(self, ctx: Context):
+        await ctx.reply('A list of commands can be found here: '
+                        'https://github.com/sam-hudson02/TwitchSpotifyBot/blob/main/Commands.md')
+
+    async def sp_status(self, ctx: Context):
         if self.settings.active:
-            if self.bot.is_live:
+            if self.bot.ac.context.live:
                 resp = self.get_perm_resp()
             else:
                 resp = "Song request are turned on but won't be taken till "
-                f"{self.bot.channel_name} is live."
+                f"{self.bot.channel} is live."
         else:
             resp = 'Song request are turned off.'
-
-        await self.bot.reply(ctx, resp)
+        await ctx.reply(resp)
 
     def get_perm_resp(self):
         if self.settings.permission is Perms.ALL:
@@ -41,9 +43,10 @@ class OfflineCog(commands.Cog):
             return 'Song request are turned on for subs only!'
         elif self.settings.permission is Perms.PRIVILEGED:
             return 'Song request are turned on for privileged users only!'
+        else:
+            return 'Song request are turned on!'
 
-    @commands.command(name='sp-leader')
-    async def leader(self, ctx: commands.Context):
+    async def leader(self, ctx: Context):
         leader = await self.db.get_leader()
         if leader is None:
             resp = "No one has been rated yet!"
@@ -52,20 +55,15 @@ class OfflineCog(commands.Cog):
             "rates!"
 
         await ctx.reply(resp)
-        self.log.resp(resp)
 
-    @commands.command(name='sp-stats')
-    async def stats(self, ctx: commands.Context):
-        username = get_username(ctx)
-        user = await self.db.get_user(username)
-        position = await self.db.get_user_position(username, user=user)
+    async def stats(self, ctx: Context):
+        position = await self.db.get_user_position(ctx.user.username,
+                                                   user=ctx.user)
 
-        await self.bot.reply(ctx, f"Your position is {position} with "
-                             f"{user.rates} rates from {user.requests} "
-                             f"requests and {user.ratesGiven} rates given!")
+        await ctx.reply(f"Your position is {position} with "
+                        f"{ctx.user.rates} rates from {ctx.user.requests} "
+                        f"requests and {ctx.user.ratesGiven} rates given!")
 
-    @commands.command(name='sp-ping')
-    async def ping(self, ctx: commands.Context):
+    async def ping(self, ctx: Context):
         resp = 'Pong!'
         await ctx.reply(resp)
-        self.log.resp(resp)

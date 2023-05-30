@@ -48,6 +48,7 @@ class TwitchCreds:
     def __init__(self):
         self.__token = get_str_env('TWITCH_TOKEN')
         self.__channel = get_str_env('TWITCH_CHANNEL')
+        self.__bot_name = get_str_env('TWITCH_BOT_NAME')
 
     @property
     def token(self):
@@ -56,6 +57,10 @@ class TwitchCreds:
     @property
     def channel(self):
         return self.__channel
+
+    @property
+    def bot_name(self):
+        return self.__bot_name
 
 
 class DiscordCreds:
@@ -93,7 +98,8 @@ class SpotifyCreds:
 
 
 class Creds:
-    def __init__(self, log: Log, file: str = './secret/conf.env'):
+    def __init__(self, log: Log = Log('main'),
+                 file: str = './secret/conf.env'):
         self.log = log
         self.file = file
         self.load_env()

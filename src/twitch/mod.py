@@ -1,54 +1,52 @@
 from prisma.models import User
-from twitchio.ext import commands
 from utils.errors import NotAuthorized, NotActive
-from utils import Timer, time_finder, get_message, target_finder, Settings, DB, Log, Perms, get_username
+from utils import target_finder, Settings, DB, Perms
+from twitch.cog import Cog
+from twitch.router import Context
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from twitch_bot import TwitchBot
+    from twitch.bot import Bot as TwitchBot
 
 
-class ModCog(commands.Cog):
+class ModCog(Cog):
     def __init__(self, bot: 'TwitchBot'):
         self.bot = bot
-        self.log: Log = bot.log
         self.db: DB = bot.db
         self.ac = bot.ac
         self.settings: Settings = bot.settings
-        self.units = bot.units
-        self.channel_name = bot.channel_name
-        self.units_full = {"s": "seconds",
-                           "m": "minutes", "h": "hours", "d": "days"}
+        self.channel = bot.channel
 
-    async def cog_check(self, ctx: commands.Context) -> bool:
-        username = get_username(ctx)
-        user = await self.db.get_user(username)
-        if not user.mod or not user.admin:
+    async def load(self):
+        self.bot.router.add_route('skip', self.skip, self)
+        self.bot.router.add_route('ban', self.ban_command, self)
+        self.bot.router.add_route('unban', self.unban_command, self)
+        self.bot.router.add_route('followers-only', self.followers_only, self)
+        self.bot.router.add_route('subs-only', self.subs_only, self)
+        self.bot.router.add_route('priv-only', self.privileged_only, self)
+        self.bot.router.add_route('all', self.all_perms, self)
+
+    async def before_invoke(self, ctx: Context) -> bool:
+        if not ctx.user.mod or not ctx.user.admin:
             raise NotAuthorized('mod')
         return True
 
-    @commands.command(name='skip')
-    async def skip(self, ctx: commands.Context):
+    async def skip(self, ctx: Context):
         if not self.settings.active:
             raise NotActive
-        if not self.bot.is_live:
-            await self.bot.reply(ctx, f'Song request are currently turned off.'
-                                 f' ({self.channel_name} not live)')
-            return False
+        if not self.ac.context.live:
+            await ctx.reply(f'Song request are currently turned off.'
+                            f' ({self.channel} not live)')
+            return
 
         await self.ac.play_next(skipped=True)
-        await self.bot.reply(ctx, 'Skipping current track!')
+        await ctx.reply('Skipping current track!')
 
-    @commands.command(name='sp-ban')
-    async def ban_command(self, ctx: commands.Context):
-        request = get_message(ctx)
-        username = get_username(ctx)
-        target_username = target_finder(request)
-
-        user = await self.db.get_user(username)
+    async def ban_command(self, ctx: Context):
+        target_username = target_finder(ctx.content)
         target = await self.db.get_user(target_username)
 
-        if await self.ban(user, target):
-            await self.bot.reply(ctx, f'@{target} has been banned!')
+        if await self.ban(ctx.user, target):
+            await ctx.reply(f'@{target} has been banned!')
 
     async def ban(self, user: User, target: User):
         # if the user is an admin ban the target even if they're a mod
@@ -67,33 +65,26 @@ class ModCog(commands.Cog):
         else:
             raise NotAuthorized('mod/admin')
 
-    @commands.command(name='sp-unban')
-    async def unban_command(self, ctx: commands.Context):
-        request = get_message(ctx)
-        target_username = target_finder(request)
-
+    async def unban_command(self, ctx: Context):
+        target_username = target_finder(ctx.content)
         await self.db.unban_user(target_username)
-        await self.bot.reply(ctx, f'@{target_username} has been unbanned!')
+        await ctx.reply(f'@{target_username} has been unbanned!')
 
-    @commands.command(name='sp-followers')
-    async def followers_only(self, ctx: commands.Context):
+    async def followers_only(self, ctx: Context):
         self.settings.set_permission(Perms.FOLLOWERS)
-        await self.bot.reply(ctx, 'Song requests are now open to followers '
-                             'only.')
+        await ctx.reply('Song requests are now open to followers '
+                        'only.')
 
-    @commands.command(name='sp-subs')
-    async def subs_only(self, ctx: commands.Context):
+    async def subs_only(self, ctx: Context):
         self.settings.set_permission(Perms.SUBS)
-        await self.bot.reply(ctx, 'Song requests are now open to subscribers '
-                             'only.')
+        await ctx.reply('Song requests are now open to subscribers '
+                        'only.')
 
-    @commands.command(name='sp-priv')
-    async def privileged_only(self, ctx: commands.Context):
+    async def privileged_only(self, ctx: Context):
         self.settings.set_permission(Perms.PRIVILEGED)
-        await self.bot.reply(ctx, 'Song requests are now open to privileged '
-                             'users only.')
+        await ctx.reply('Song requests are now open to privileged '
+                        'users only.')
 
-    @commands.command(name='sp-all')
-    async def all_perms(self, ctx: commands.Context):
+    async def all_perms(self, ctx: Context):
         self.settings.set_permission(Perms.ALL)
-        await self.bot.reply(ctx, 'Song requests are now open to everyone.')
+        await ctx.reply('Song requests are now open to everyone.')
