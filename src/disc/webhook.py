@@ -97,24 +97,17 @@ class DiscordHook:
     async def check_queue(self):
         new_queue = await self.db.get_queue()
         if new_queue != self.queue:
-            self.log.info('Queue has changed')
             self.queue = new_queue
             await self.send_queue()
-        else:
-            self.log.info('Queue is the same')
 
     async def check_leaderboard(self):
         new_leaderboard = await self.db.get_leaderboard()
         if new_leaderboard.sorted != self.leaderboard.sorted:
-            self.log.info('Leaderboard has changed')
             self.leaderboard = new_leaderboard
             await self.send_leaderboard()
-        else:
-            self.log.info('Leaderboard is the same')
 
     async def update(self):
         while True:
-            print('Checking for updates')
             await self.check_queue()
             await self.check_leaderboard()
             await asyncio.sleep(2)
