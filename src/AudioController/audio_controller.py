@@ -147,6 +147,7 @@ class AudioController:
         return
 
     async def set_requester(self, song_req: Queue):
+        print('checking requester')
         current_playback_id = self.spot.get_context().playback_id
 
         if current_playback_id is None:
@@ -207,10 +208,12 @@ class AudioController:
                     self.next = {'id': playback_id,
                                  'requester': next.requester}
                 else:
-                    self.req_timer = Timer(
-                        time_left + 3000, self.set_requester, args=[next])
+                    self.req_timer = Timer(time_left + 3000,
+                                           self.set_requester, args=[next])
             if skipped:
                 self.spot.sp.next_track()
+                self.req_timer = Timer(time_left + 3000,
+                                       self.set_requester, args=[next])
             self.add_to_history(playback_id, next)
 
         elif self.context.playing_queue:
@@ -243,10 +246,8 @@ class AudioController:
 
     async def update_context(self):
         if not self.context.active:
-            print('Context not active')
             return
         if not self.context.live:
-            print('Context not live')
             return
         self.context_time = time.time() * 1000
         new_context = self.spot.get_context()
@@ -256,13 +257,11 @@ class AudioController:
             if self.queue_blocked:
                 self.recheck_queue()
         else:
-            print('Context is None')
             self.context.track = None
             self.context.paused = True
 
     async def update(self):
         while True:
-            print('Updating context...')
             try:
                 await self.update_context()
             except Exception as e:
