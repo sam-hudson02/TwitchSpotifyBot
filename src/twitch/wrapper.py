@@ -20,18 +20,25 @@ class Wrapper:
         print("empty")
         pass
 
-    async def connect(self):
-        if self.sock is None:
-            self.sock = socket.socket()
-        self.sock.connect((self.server, self.port))
-        self.sock.send('CAP REQ :twitch.tv/membership twitch.tv/tags\n'
-                       .encode("utf-8"))
-        self.sock.send(f"PASS oauth:{self.creds.token}\n".encode("utf-8"))
-        self.sock.send(f"NICK {self.creds.bot_name}\n".encode("utf-8"))
-        self.sock.send(f"JOIN #{self.creds.channel}\n".encode("utf-8"))
-        resp = self.sock.recv(2048).decode("utf-8")
-        print(resp)
-        await self._on_join(self.creds.channel)
+    async def connect(self, tries: int = 0):
+        if tries > 5:
+            return
+        try:
+            if self.sock is None:
+                self.sock = socket.socket()
+            self.sock.connect((self.server, self.port))
+            self.sock.send('CAP REQ :twitch.tv/membership twitch.tv/tags\n'
+                           .encode("utf-8"))
+            self.sock.send(f"PASS oauth:{self.creds.token}\n".encode("utf-8"))
+            self.sock.send(f"NICK {self.creds.bot_name}\n".encode("utf-8"))
+            self.sock.send(f"JOIN #{self.creds.channel}\n".encode("utf-8"))
+            resp = self.sock.recv(2048).decode("utf-8")
+            print(resp)
+            await self._on_join(self.creds.channel)
+        except Exception as e:
+            print(e)
+            await asyncio.sleep(1.5 ** tries)
+            await self.connect(tries + 1)
 
     def disconnect(self):
         if self.sock is None:
