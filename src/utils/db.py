@@ -72,6 +72,24 @@ class DB:
             },
         )
 
+    async def remove_last_request(self, username: str) -> None | Queue:
+        request = await self.client.queue.find_first(
+            where={"requester": username},
+            order={"createdAt": "desc"},
+        )
+        if request is None:
+            return
+        deleted = await self.client.queue.delete(where={"id": request.id})
+        await self.client.user.update(
+            where={"username": username},
+            data={
+                "requests": {
+                    "decrement": 1,
+                },
+            },
+        )
+        return deleted
+
     async def get_leader(self) -> User | None:
         return await self.client.user.find_first(
             where={},

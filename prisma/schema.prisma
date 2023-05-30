@@ -21,7 +21,8 @@ model User {
 }
 
 model Queue {
-  id        Int    @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
   name      String
   artist    String
   requester String
