@@ -1,4 +1,6 @@
 from prisma.models import Queue
+from AudioController.track_context import TrackContext
+from AudioController.track_info import TrackInfo
 from utils.errors import TrackNotFound, YoutubeLink, UnsupportedLink
 from AudioController.spotify_api import Spotify
 import time
@@ -23,19 +25,19 @@ class Context:
         self.active = True
         self.live = True
 
-    def update(self, context: dict):
+    def update(self, track_context: TrackContext):
         if not self.playing_queue:
-            self.playlist = context.get('playlist', None)
-        self.progress = context.get('progress', None)
-        self.duration = context.get('duration', None)
-        self.album_art = context.get('album_art', None)
-        self.paused = context.get('paused', True)
-        self.track = context.get('track', None)
-        self.artist = context.get('artist', None)
-        if self.playback_id != context.get('playback_id', None):
+            self.playlist = track_context.playlist
+        self.progress = track_context.progress
+        self.duration = track_context.duration
+        self.album_art = track_context.album_art
+        self.paused = track_context.paused
+        self.track = track_context.track
+        self.artist = track_context.artist
+        if self.playback_id != track_context.playback_id:
             self.requester = None
             self.playing_queue = False
-        self.playback_id = context.get('playback_id', None)
+        self.playback_id = track_context.playback_id
 
     def get_context(self):
         return {'playlist': self.playlist,
@@ -69,7 +71,7 @@ class AudioController:
         self.next = None
         self.history = []
 
-    async def add_to_queue(self, req: str, user: str):
+    async def add_to_queue(self, req: str, user: str) -> TrackInfo:
         # deals with youtube request with link in request
         if 'https://www.youtube.com' in req or 'https://youtu.be/' in req:
             raise YoutubeLink
@@ -86,7 +88,7 @@ class AudioController:
                     link = link.strip('\n')
             if link is None:
                 raise TrackNotFound
-            track, artist, link = self.spot.get_track_info(url=link)
+            info = self.spot.get_track_info(url=link)
 
         elif 'spotify:track:' in req:
             words = req.split(' ')
@@ -98,7 +100,7 @@ class AudioController:
                     link = link.strip('\n')
             if link is None:
                 raise TrackNotFound
-            track, artist, link = self.spot.get_track_info(url=link)
+            info = self.spot.get_track_info(url=link)
 
         # raise error if link isn't spotify or youtube
         elif 'http' in req:
@@ -108,18 +110,18 @@ class AudioController:
         else:
             link = self.spot.search_song(req)
             if link is not None:
-                track, artist, link = self.spot.get_track_info(url=link)
+                info = self.spot.get_track_info(url=link)
             else:
                 raise TrackNotFound
 
         # returns track and artist if song was found,
         # and adds song to queue if the request is a spotify request
 
-        song_req = SongReq(name=track, artist=artist,
-                           url=link, requester=user)
+        song_req = SongReq(name=info.track, artist=info.artist,
+                           url=info.link, requester=user)
         await self.db.add_to_queue(song_req)
-        self.log.info(f'Added {track} by {artist} to queue.')
-        return track, artist
+        self.log.info(f'Added {info.track} by {info.artist} to queue.')
+        return info
 
     async def check_context(self):
         if self.context.paused:
@@ -140,12 +142,12 @@ class AudioController:
         if time_left <= 9700 and time_left > 2100:
             if self.next_timer is not None:
                 self.next_timer.cancel()
-            self.next_timer = Timer(
-                time_left - 2000, self.play_next, args=[False, time_left])
+            self.next_timer = Timer(int(time_left - 2000), self.play_next,
+                                    args=[False, time_left])
         return
 
     async def set_requester(self, song_req: Queue):
-        current_playback_id = self.spot.get_context().get('playback_id', None)
+        current_playback_id = self.spot.get_context().playback_id
 
         if current_playback_id is None:
             self.log.info('No current track.')
@@ -168,8 +170,8 @@ class AudioController:
             return
 
         if self.context.playback_id == self.next['id']:
-            self.log.info(
-                f'Playback ID matches next song in queue. {self.context.playback_id} == {self.next["id"]}')
+            self.log.info(f'Playback ID matches next song in queue. \
+                            {self.context.playback_id} == {self.next["id"]}')
             self.context.requester = self.next['requester']
             self.context.playing_queue = True
             self.queue_blocked = False
@@ -261,5 +263,8 @@ class AudioController:
     async def update(self):
         while True:
             print('Updating context...')
-            await self.update_context()
+            try:
+                await self.update_context()
+            except Exception as e:
+                print(e)
             await asyncio.sleep(8)
