@@ -1,14 +1,8 @@
-src/__pycache__
-tests/__pycache__
+**/__pycache__/*
 .idea
 /secret
 /data
 /env
 **.env
-src/db-test.py
 /.vscode
 .prettierignore
-src/utils/__pycache__
-src/twitch/__pycache__
-src/disc/__pycache__
-src/AudioController/__pycache__
