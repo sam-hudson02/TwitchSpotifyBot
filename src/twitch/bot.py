@@ -9,6 +9,7 @@ from twitch.public_online import OnlineCog
 from twitch.public_offline import OfflineCog
 from twitch.mod import ModCog
 from twitch.admin import AdminCog
+from utils.logger import Log
 if TYPE_CHECKING:
     from twitch.cog import Cog
 
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
 class Bot:
     def __init__(self, service: Wrapper, db: DB, settings: Settings,
                  ac: AudioController, creds: TwitchCreds, prefix: str = '!'):
+        self.log = Log('Twitch')
         self.service: Wrapper = service
         self.service.on_join(self.on_join)
         self.service.on_message(self.on_message)
@@ -31,23 +33,21 @@ class Bot:
                                   AdminCog(self)]
 
     async def on_join(self, channel: str) -> None:
-        print('joined ' + channel)
+        self.log.info(f'Joined channel: {channel}')
         await self.service.send('Sbotify is now online!')
 
     async def on_message(self, msg: Message) -> None:
         try:
-            print(msg.content)
             if msg.content.startswith(self.prefix):
-                print(msg.content)
                 command = msg.content[len(self.prefix):].split(' ')[0]
                 await self.router.handle(msg, command)
         except Exception as e:
             await self.on_error(msg, e)
 
     async def start(self):
-        print('loading cogs')
+        self.log.info('Loading cogs')
         await self.load_cogs()
-        print('starting bot')
+        self.log.info('Starting service')
         await self.service.start()
 
     async def load_cogs(self):
@@ -55,7 +55,6 @@ class Bot:
             await cog.load()
 
     async def on_error(self, msg: Message, error: Exception):
-        print(error)
         await msg.reply('An error occurred!')
 
     def __del__(self):

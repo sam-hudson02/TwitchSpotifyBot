@@ -53,12 +53,9 @@ class OnlineCog(Cog):
         return True
 
     async def update_song_context(self):
-        print('updating song context')
         if not self.ac.context.live:
-            print('not live')
             return
         if not self.settings.active:
-            print('not active')
             return
         await self.ac.update_context()
 
@@ -73,7 +70,6 @@ class OnlineCog(Cog):
                           the queue!')
 
     async def song_info(self, ctx: Context):
-        print('song called')
         if self.ac.context.track is None or self.ac.context.paused:
             await ctx.reply("No song currently playing!")
 

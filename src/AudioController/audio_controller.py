@@ -147,7 +147,6 @@ class AudioController:
         return
 
     async def set_requester(self, song_req: Queue):
-        print('checking requester')
         current_playback_id = self.spot.get_context().playback_id
 
         if current_playback_id is None:
@@ -265,5 +264,5 @@ class AudioController:
             try:
                 await self.update_context()
             except Exception as e:
-                print(e)
+                self.log.error('Error updating context: ' + str(e))
             await asyncio.sleep(8)

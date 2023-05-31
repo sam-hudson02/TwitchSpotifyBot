@@ -2,20 +2,23 @@ from prisma.models import User
 from twitch.wrapper import Message
 from typing import Callable, Awaitable, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
+    from utils.logger import Log
     from twitch.cog import Cog
     from twitch.bot import Bot
 
 
 class Context:
-    def __init__(self, user: User, command: str, msg: Message):
+    def __init__(self, user: User, command: str, msg: Message, log: 'Log'):
+        self.log = log
         self.user: User = user
         self.command: str = command
         self.msg: Message = msg
         self.chatter = msg.chatter
         self.content = self._get_content()
+        self.log.req(self.user.username, self.command, self.content)
 
     async def reply(self, msg: str):
-        print('replying')
+        self.log.resp(msg)
         await self.msg.reply(msg)
 
     def _get_content(self):
@@ -34,43 +37,38 @@ class Router:
     def __init__(self, bot: 'Bot'):
         self.routes: dict[str, Command] = {}
         self.bot: 'Bot' = bot
+        self.log = bot.log
 
     async def handle(self, msg: Message, command: str):
-        print('handling ' + command)
         command_obj = self.routes.get(command, None)
 
         if command_obj is None:
-            print('command not found')
-            print(self.routes.keys())
             return
 
+        user = await self.bot.db.get_user(msg.chatter.username)
+        ctx = Context(user, command, msg, self.log)
         if command_obj.cog is not None:
-            await self.run_cog_command(command_obj.func, command_obj.cog, msg,
-                                       command)
+            await self.run_cog_command(command_obj.func, command_obj.cog, ctx)
         else:
-            await self.run_command(command_obj.func, msg, command)
+            await self.run_command(command_obj.func, ctx)
 
     async def run_cog_command(self, func: Callable[[Context], Awaitable[None]],
-                              cog: 'Cog', msg: Message, command: str):
-        print('running cog command')
+                              cog: 'Cog', ctx: Context):
         try:
-            user = await self.bot.db.get_user(msg.chatter.username)
-            ctx = Context(user, command, msg)
             if not await cog.before_invoke(ctx):
                 return
             await func(ctx)
             await cog.after_invoke(ctx)
         except Exception as e:
-            await cog.on_error(msg, e)
+            self.log.error(e)
+            await cog.on_error(ctx.msg, e)
 
     async def run_command(self, func: Callable[[Context], Awaitable[None]],
-                          msg: Message, command: str):
-        print('running command')
+                          ctx: Context):
         try:
-            user = await self.bot.db.get_user(msg.chatter.username)
-            ctx = Context(user, command, msg)
             await func(ctx)
         except Exception as e:
+            self.log.error(e)
             raise e
 
     def add_route(self, command: str,

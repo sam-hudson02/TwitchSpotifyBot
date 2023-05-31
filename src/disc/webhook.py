@@ -20,12 +20,14 @@ class DiscordHook:
         self.queue_webhook: Webhook | None = None
         if queue_url is not None:
             session = aiohttp.ClientSession()
+            self.log.info('Creating webhook for queue')
             self.queue_webhook = Webhook.from_url(
                 queue_url, session=session)
 
         self.leaderboard_webhook: Webhook | None = None
         if leaderboard_url is not None:
             session = aiohttp.ClientSession()
+            self.log.info('Creating webhook for leaderboard')
             self.leaderboard_webhook = Webhook.from_url(
                 leaderboard_url, session=session)
 
@@ -78,9 +80,11 @@ class DiscordHook:
 
         q = self.embed_queue()
         if self.q_message is None:
+            self.log.info('Sending new queue message')
             self.q_message = await self.queue_webhook.send(content=q,
                                                            wait=True)
         else:
+            self.log.info('Updating queue message')
             self.q_message = await self.q_message.edit(content=q)
 
     async def send_leaderboard(self):
@@ -89,9 +93,11 @@ class DiscordHook:
 
         embeds = [await self.embed_leaderboard()]
         if self.l_message is None:
+            self.log.info('Sending new leaderboard message')
             self.l_message = await self.leaderboard_webhook.send(embeds=embeds,
                                                                  wait=True)
         else:
+            self.log.info('Updating leaderboard message')
             self.l_message = await self.l_message.edit(embeds=embeds)
 
     async def check_queue(self):
@@ -124,4 +130,10 @@ class DiscordHook:
             await self.queue_webhook.session.close()
 
     def __del__(self):
-        asyncio.run(self.cleanup())
+        self.log.info('Cleaning up discord hook')
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        loop.run_until_complete(self.cleanup())

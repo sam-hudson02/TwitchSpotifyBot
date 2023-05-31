@@ -3,10 +3,12 @@ from utils import SpotifyCreds
 from utils.errors import BadLink, NoCurrentTrack, TrackNotFound
 from AudioController.track_info import TrackInfo
 from AudioController.track_context import TrackContext
+from utils.logger import Log
 
 
 class Spotify:
     def __init__(self, creds: SpotifyCreds):
+        self.log = Log('Spotify')
         self.user = creds.username
         self.client_id = creds.client_id
         self.secret = creds.client_secret
@@ -93,7 +95,7 @@ class Spotify:
                 raise NoCurrentTrack
             return TrackContext(info)
         except TypeError as er:
-            print(er)
+            self.log.error(er)
             raise NoCurrentTrack
 
     def next(self) -> None:
@@ -124,5 +126,4 @@ class Spotify:
         queue_info = []
         for track in queue:
             queue_info.append(track['id'])
-        print(queue_info)
         return queue_info
