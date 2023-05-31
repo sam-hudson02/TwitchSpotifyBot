@@ -1,10 +1,11 @@
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from twitch.wrapper import Wrapper
+    from twitch.wrapper import Wrapper, API
 
 
 class Chatter:
-    def __init__(self, tags: dict):
+    def __init__(self, tags: dict, api: 'API'):
+        self.api = api
         self.tags: dict[str, str] = tags
         self.id: str = self.tags['user-id']
         self.name: str = self.tags['display-name']
@@ -27,9 +28,7 @@ class Chatter:
 
     async def is_follower(self) -> bool:
         # TODO: make this work
-        if self.tags['follower'] == '1':
-            return True
-        return False
+        return await self.api.is_follower(self.id)
 
     async def is_vip(self):
         if self.tags['vip'] == '1':
@@ -51,7 +50,7 @@ class Message:
         return self.tags['id']
 
     def _get_chatter(self) -> Chatter:
-        return Chatter(self.tags)
+        return Chatter(self.tags, self.wrapper.api)
 
     def _get_message(self, raw: str) -> str:
         return raw.split(':')[2].strip('\r\n')

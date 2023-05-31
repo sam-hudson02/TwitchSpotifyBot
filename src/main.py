@@ -7,6 +7,7 @@ from AudioController.audio_controller import AudioController, Context
 from twitch.wrapper import Wrapper
 from utils import Log, DB, Settings, Creds
 import asyncio
+from typing import Optional
 
 
 def init_data_dir():
@@ -15,7 +16,8 @@ def init_data_dir():
 
 
 async def start_twitch_bot(creds: Creds, settings: Settings, ctx: Context,
-                           ac_log: Log, loop: asyncio.AbstractEventLoop = None):
+                           ac_log: Log,
+                           loop: Optional[asyncio.AbstractEventLoop] = None):
     service = Wrapper(creds.twitch)
 
     db = DB()
@@ -31,12 +33,12 @@ async def start_twitch_bot(creds: Creds, settings: Settings, ctx: Context,
     if loop is None:
         loop = asyncio.get_event_loop()
 
+    # loop.run_until_complete(t_bot.check_live())
     loop.create_task(t_bot.start())
-    loop.create_task(ac.update())
 
 
 async def start_discord_hook(creds: Creds, settings: Settings,
-                             loop: asyncio.AbstractEventLoop = None):
+                             loop: Optional[asyncio.AbstractEventLoop] = None):
     disc_creds = creds.discord
     channel = creds.twitch.channel
 
@@ -58,21 +60,25 @@ async def start_discord_hook(creds: Creds, settings: Settings,
 
 
 def main():
-    init_data_dir()
+    try:
+        init_data_dir()
 
-    main_log = Log('Main', True)
+        main_log = Log('Main', True)
 
-    creds = Creds(main_log)
-    settings = Settings()
-    ctx = Context()
+        creds = Creds(main_log)
+        settings = Settings()
+        ctx = Context()
 
-    ac_log = Log('AudioController', settings.log)
+        ac_log = Log('AudioController')
 
-    asyncio.set_event_loop(asyncio.new_event_loop())
-    loop = asyncio.get_event_loop()
-    loop.create_task(start_twitch_bot(creds, settings, ctx, ac_log))
-    loop.create_task(start_discord_hook(creds, settings))
-    loop.run_forever()
+        asyncio.set_event_loop(asyncio.new_event_loop())
+        loop = asyncio.new_event_loop()
+        loop.create_task(start_twitch_bot(creds, settings, ctx, ac_log))
+        loop.create_task(start_discord_hook(creds, settings))
+        loop.run_forever()
+    except KeyboardInterrupt:
+        print('Exiting')
+        exit(0)
 
 
 if __name__ == "__main__":

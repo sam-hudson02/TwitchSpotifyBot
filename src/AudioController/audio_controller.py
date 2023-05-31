@@ -261,8 +261,9 @@ class AudioController:
 
     async def update(self):
         while True:
-            try:
-                await self.update_context()
-            except Exception as e:
-                self.log.error('Error updating context: ' + str(e))
+            if self.context.active and self.context.live:
+                try:
+                    await self.update_context()
+                except Exception as e:
+                    self.log.error('Error updating context: ' + str(e))
             await asyncio.sleep(8)

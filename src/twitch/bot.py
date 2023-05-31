@@ -1,3 +1,4 @@
+import asyncio
 from AudioController.audio_controller import AudioController
 from twitch.wrapper import Message, Wrapper
 from typing import TYPE_CHECKING
@@ -44,11 +45,15 @@ class Bot:
         except Exception as e:
             await self.on_error(msg, e)
 
+    async def on_live(self):
+        self.log.info(f'{self.channel} is live!')
+
     async def start(self):
         self.log.info('Loading cogs')
         await self.load_cogs()
         self.log.info('Starting service')
         await self.service.start()
+        await self.start_routines()
 
     async def load_cogs(self):
         for cog in self.cogs:
@@ -56,6 +61,24 @@ class Bot:
 
     async def on_error(self, msg: Message, error: Exception):
         await msg.reply('An error occurred!')
+
+    async def check_live(self):
+        while True:
+            live = await self.service.api.is_live()
+            if self.settings.dev_mode:
+                live = True
+            if live and not self.ac.context.live:
+                self.log.info(f'{self.channel} is live!')
+                self.ac.context.live = True
+            elif not live and self.ac.context.live:
+                self.log.info(f'{self.channel} is offline!')
+                self.ac.context.live = False
+            await asyncio.sleep(10)
+
+    async def start_routines(self):
+        loop = asyncio.get_event_loop()
+        self.check_live_routine = loop.create_task(self.check_live())
+        self.ac_update_routine = loop.create_task(self.ac.update())
 
     def __del__(self):
         self.service.disconnect()
