@@ -2,6 +2,7 @@ from AudioController.spotify_api import Spotify
 from AudioController.track_context import TrackContext
 from AudioController.track_info import TrackInfo
 from utils.errors import BadLink, NoCurrentTrack, TrackNotFound
+from utils.logger import Log
 
 
 def get_mock_json(name='test') -> dict:
@@ -46,13 +47,14 @@ class MockSpot(Spotify):
         }
         self.queue = []
         self.current = None
+        self.log = Log('Spotify')
 
     def search_song(self, query):
-        print(f'Searching for {query}')
+        self.log.info(f'Searching for {query}')
         song = self.song_map.get(query)
         if song is None:
             raise TrackNotFound
-        print(f'Found {song}')
+        self.log.info(f'Found {song}')
         return song
 
     def get_queue(self):
@@ -61,6 +63,7 @@ class MockSpot(Spotify):
     def get_context(self):
         info = self.current
         if info is None:
+            self.log.error('No current track')
             raise NoCurrentTrack
         return TrackContext(info)
 
@@ -68,11 +71,13 @@ class MockSpot(Spotify):
         for name, link in self.song_map.items():
             if link == url:
                 info = get_mock_json(name)
+                self.log.info(f'Found {url}')
                 return TrackInfo(info['item'])
-        print(f'Could not find {url}')
+        self.log.error(f'Could not find {url}')
         raise BadLink
 
     def set_progress(self, progress):
+        self.log.info(f'Setting progress to {progress}')
         if self.current is None:
             return
         self.current['progress_ms'] = progress

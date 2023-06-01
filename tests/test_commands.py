@@ -70,3 +70,34 @@ class TestCommands(unittest.IsolatedAsyncioTestCase):
         await self.wrapper.read()
         expected = f'@{self.channel} test2 by test2 has been added to the queue!'
         self.assertEqual(self.socket.get_last(), expected)
+
+    async def reqSong(self, request, name, artist):
+        self.socket.from_twitch(f'!sr {request}', self.channel, self.channel)
+        await self.wrapper.read()
+        expected = f'@{self.channel} {name} by {artist} has been added to the queue!'
+        self.assertEqual(self.socket.get_last(), expected)
+
+        # check its in the db
+        next = await self.db.get_next_song()
+        if next is None:
+            self.fail('song not in db')
+        self.assertEqual(next.name, 'test')
+        self.assertEqual(next.requester, self.channel)
+
+    async def dbRefresh(self):
+        await self.db.delete_all()
+        await self.db.get_user(self.channel, True, True)
+
+    async def testVeto(self):
+        await self.dbRefresh()
+        self.socket.from_twitch('!dev-on', self.channel, self.channel)
+
+        # add song 'test' to the queue
+        await self.reqSong('test', 'test', 'test')
+
+        # veto the song
+        author = 'someuser'
+        self.socket.from_twitch('!veto', author, self.channel)
+        await self.wrapper.read()
+        expected = f'@{self.channel} 1 out of 5 chatters have voted to skip the current song!'
+        self.assertEqual(self.socket.get_last(), expected)
