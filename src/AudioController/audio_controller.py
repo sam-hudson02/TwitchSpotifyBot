@@ -79,7 +79,6 @@ class AudioController:
         words = req.split(' ')
 
         # deals with spotify request with link in request
-        print(req)
         if 'open.spotify.com/track' in req:
             link = None
             for word in words:
