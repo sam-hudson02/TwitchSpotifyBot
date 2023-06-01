@@ -79,6 +79,3 @@ class Bot:
         loop = asyncio.get_event_loop()
         self.check_live_routine = loop.create_task(self.check_live())
         self.ac_update_routine = loop.create_task(self.ac.update())
-
-    def __del__(self):
-        self.service.disconnect()

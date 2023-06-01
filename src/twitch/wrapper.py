@@ -62,6 +62,10 @@ class Wrapper:
         self.sock.send(f"PART #{self.creds.channel}\n".encode("utf-8"))
         self.sock.close()
 
+    async def cleanup(self):
+        self.disconnect()
+        await self.api.close()
+
     async def start(self):
         await self.connect()
         th.Thread(target=self.run_listen).start()
@@ -181,3 +185,6 @@ class API:
             headers['Client-Id'] = resp['client_id']
             self._headers = headers
         return self._headers
+
+    async def close(self):
+        await self.session.close()

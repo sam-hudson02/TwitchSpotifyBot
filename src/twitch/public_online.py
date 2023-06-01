@@ -90,7 +90,7 @@ class OnlineCog(Cog):
             return
         await ctx.reply(f'Next song is {next_song.name} by '
                         f'{next_song.artist} as requested by '
-                        f'{next_song.requester}!')
+                        f'@{next_song.requester}!')
 
     async def remove_request(self, ctx: Context):
         req = await self.bot.db.remove_last_request(ctx.user.username)
@@ -124,5 +124,5 @@ class OnlineCog(Cog):
             return
 
         await self.rate_tracker.add_rate(ctx.user.username)
-        await ctx.reply(f'@{ctx.user.username} has rated '
-                        f'@{self.ac.context.requester}\'s song ')
+        await ctx.send(f'@{ctx.user.username} has rated '
+                       f'@{self.ac.context.requester}\'s song ')

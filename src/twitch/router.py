@@ -24,6 +24,10 @@ class Context:
     def _get_content(self):
         return self.msg.content[len(self.command) + 1:].strip()
 
+    async def send(self, msg: str):
+        self.log.resp(msg)
+        await self.msg.send(msg)
+
 
 class Command:
     def __init__(self, cog: Optional['Cog'], command: str,

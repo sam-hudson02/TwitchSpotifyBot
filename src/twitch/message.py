@@ -66,3 +66,6 @@ class Message:
 
     async def reply(self, message: str):
         await self.wrapper.send(f"@{self.chatter.name} {message}")
+
+    async def send(self, message: str):
+        await self.wrapper.send(message)
