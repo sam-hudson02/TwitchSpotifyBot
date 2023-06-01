@@ -14,8 +14,8 @@ class Spotify:
         self.secret = creds.client_secret
         self.scopes = creds.scopes
         self.token = self.get_token()
-        self.sp = self.auth()
-        self.sp.search(q='test')
+        self._sp = self.auth()
+        self._sp.search(q='test')
 
     def get_token(self):
         cache_path = f'./secret/.cache-{self.user}'
@@ -34,7 +34,7 @@ class Spotify:
 
     def search_song(self, query) -> str:
         try:
-            results = self.sp.search(query, limit=1, type='track')
+            results = self._sp.search(query, limit=1, type='track')
             if results is None:
                 raise TrackNotFound
             url = results['tracks']['items'][0]['external_urls']['spotify']
@@ -43,7 +43,7 @@ class Spotify:
             raise TrackNotFound
 
     def get_track_info(self, url: str) -> TrackInfo:
-        info = self.sp.track(url)
+        info = self._sp.track(url)
         if info is None:
             raise BadLink
         return TrackInfo(info)
@@ -57,7 +57,7 @@ class Spotify:
 
     def get_current_track(self) -> TrackInfo:
         try:
-            info = self.sp.current_user_playing_track()
+            info = self._sp.current_user_playing_track()
             if info is None:
                 raise NoCurrentTrack
             info = info['item']
@@ -66,7 +66,7 @@ class Spotify:
             raise NoCurrentTrack
 
     def get_recent_plays(self) -> list[TrackInfo]:
-        recent = self.sp.current_user_recently_played(limit=10)
+        recent = self._sp.current_user_recently_played(limit=10)
         if recent is None:
             return []
         info_all = recent['items']
@@ -85,12 +85,12 @@ class Spotify:
 
     def skip(self):
         info = self.get_current_track()
-        self.sp.next_track()
+        self._sp.next_track()
         return info
 
     def get_context(self) -> TrackContext:
         try:
-            info = self.sp.current_user_playing_track()
+            info = self._sp.current_user_playing_track()
             if info is None:
                 raise NoCurrentTrack
             return TrackContext(info)
@@ -99,27 +99,27 @@ class Spotify:
             raise NoCurrentTrack
 
     def next(self) -> None:
-        self.sp.next_track()
+        self._sp.next_track()
 
     def play_pause(self) -> bool:
-        playback = self.sp.current_playback()
+        playback = self._sp.current_playback()
         if playback is None:
             return False
         if playback['is_playing']:
-            self.sp.pause_playback()
+            self._sp.pause_playback()
             return True
         else:
-            self.sp.start_playback()
+            self._sp.start_playback()
             return False
 
     def play(self, link) -> None:
         try:
-            self.sp.start_playback(uris=[link])
+            self._sp.start_playback(uris=[link])
         except spotipy.exceptions.SpotifyException:
             pass
 
     def get_queue(self) -> list[str]:
-        info = self.sp.queue()
+        info = self._sp.queue()
         if info is None:
             return []
         queue = info['queue']
@@ -127,3 +127,6 @@ class Spotify:
         for track in queue:
             queue_info.append(track['id'])
         return queue_info
+
+    def add_to_queue(self, link) -> None:
+        self._sp.add_to_queue(link)

@@ -79,6 +79,7 @@ class AudioController:
         words = req.split(' ')
 
         # deals with spotify request with link in request
+        print(req)
         if 'open.spotify.com/track' in req:
             link = None
             for word in words:
@@ -187,16 +188,11 @@ class AudioController:
         if len(queue) > 0:
             if self.queue_blocked:
                 return
-            # get next song in queue
             next = queue[0]
-            # remove song from queue
             await self.db.remove_from_queue(next.id)
-            # play song
-            # self.spot.sp.start_playback(uris=[next_song[5]])
-            # update context
             self.log.info(f'Preparing to play {next.name} ' +
                           f'requested by {next.artist}')
-            self.spot.sp.add_to_queue(next.url)
+            self.spot.add_to_queue(next.url)
             spot_queue = self.spot.get_queue()
             playback_id = next.url.split('/')[-1]
             if len(spot_queue) > 0:
@@ -210,7 +206,7 @@ class AudioController:
                     self.req_timer = Timer(time_left + 3000,
                                            self.set_requester, args=[next])
             if skipped:
-                self.spot.sp.next_track()
+                self.spot.next()
                 self.req_timer = Timer(time_left + 3000,
                                        self.set_requester, args=[next])
             self.add_to_history(playback_id, next)
@@ -222,7 +218,7 @@ class AudioController:
             await self.update_context()
 
         elif skipped:
-            self.spot.sp.next_track()
+            self.spot.next()
             await self.update_context()
 
         return
