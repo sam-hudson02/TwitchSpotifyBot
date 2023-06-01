@@ -1,48 +1,14 @@
-import asyncio
-import sys
 import unittest
-import socket
-import time
-import threading as th
-sys.path.append('src')
-sys.path.append('tests')
-if True:
-    from utils.settings import Settings
-    from utils.logger import Log
-    from utils.db import DB
-    from utils.creds import Creds
-    from twitch.wrapper import Wrapper
-    from twitch.bot import Bot
-    from AudioController.spotify_api import Spotify
-    from AudioController.audio_controller import AudioController, Context
+from utils.settings import Settings
+from utils.logger import Log
+from utils.db import DB
+from utils.creds import Creds
+from twitch.wrapper import Wrapper
+from twitch.bot import Bot
+from AudioController.audio_controller import AudioController, Context
+from mocks.mock_sock import MockSocket
+from mocks.mock_spot import MockSpot
 # add src to path
-
-
-class MockSocket(socket.socket):
-    def __init__(self, creds: Creds):
-        self.last_sent = b''
-        self.creds = creds
-        self._recv = ''
-
-    def connect(self, host):
-        self._recv = f':tmi.twitch.tv 001 {self.creds.twitch.channel} :Welcome, GLHF!'
-
-    def send(self, data):
-        self.last_sent = data
-
-    def recv(self, size):
-        while self._recv == '':
-            time.sleep(0.1)
-        response = self._recv
-        self._recv = ''
-        return response.encode('utf-8')
-
-    def from_twitch(self, msg, author, channel, badges='something/something', sub=False):
-        self._recv = f"@badge-info=;badges={badges},premium/1;client-nonce=2236c00d2eee968a40646ac7b169ed81;color=;display-name={channel};emotes=;first-msg=0;flags=;id=ea69b4b1-a28c-4321-8812-cea9bc5c8d62;mod=0;returning-chatter=0;room-id=151470592;subscriber={int(sub)};tmi-sent-ts=1685411550601;turbo=0;user-id=151470592;user-type= :samtheno0b!samtheno0b@samtheno0b.tmi.twitch.tv PRIVMSG #samtheno0b :{msg}"
-
-    def get_last(self):
-        raw = self.last_sent.decode('utf-8')
-        return raw.split(':')[1].strip('\n')
 
 
 class TestCommands(unittest.IsolatedAsyncioTestCase):
@@ -52,7 +18,10 @@ class TestCommands(unittest.IsolatedAsyncioTestCase):
         self.wrapper = Wrapper(self.creds.twitch, self.socket)
         self.db = DB()
         await self.db.connect()
-        self.spot = Spotify(self.creds.spotify)
+        await self.db.delete_all()
+        self.channel = self.creds.twitch.channel
+        await self.db.get_user(self.channel, True, True)
+        self.spot = MockSpot()
         self.audio_ctx = Context()
         log = Log('AC')
         self.ac = AudioController(self.db, self.spot, self.audio_ctx, log)
@@ -61,12 +30,43 @@ class TestCommands(unittest.IsolatedAsyncioTestCase):
                        self.ac, self.creds.twitch)
         await self.bot.load_cogs()
         print('setup complete')
-        self.channel = self.creds.twitch.channel
-        self.author = self.creds.twitch.channel
 
-    async def test_song(self):
-        self.socket.from_twitch('!song', self.channel, self.channel)
-        await self.ac.update_context()
+    async def testDev(self):
+        self.socket.from_twitch('!dev-on', self.channel, self.channel)
         await self.wrapper.read()
-        self.assertIsNotNone(self.socket.get_last())
-        print(self.socket.get_last())
+        expected = f'@{self.channel} Dev mode has been turned on!'
+        self.assertEqual(self.socket.get_last(), expected)
+        self.socket.from_twitch('!dev-off', self.channel, self.channel)
+        await self.wrapper.read()
+        expected = f'@{self.channel} Dev mode has been turned off!'
+        self.assertEqual(self.socket.get_last(), expected)
+
+    async def testSr(self):
+        self.socket.from_twitch('!dev-on', self.channel, self.channel)
+
+        # add song 'test' to the queue
+        self.socket.from_twitch('!sr test', self.channel, self.channel)
+        await self.wrapper.read()
+        expected = f'@{self.channel} test by test has been added to the queue!'
+        self.assertEqual(self.socket.get_last(), expected)
+
+        # check its in the db
+        next = await self.db.get_next_song()
+        if next is None:
+            self.fail('song not in db')
+        self.assertEqual(next.name, 'test')
+        self.assertEqual(next.requester, self.channel)
+
+        # shouldn't be able to add the same song twice
+        self.socket.from_twitch('!sr test', self.channel, self.channel)
+        await self.wrapper.read()
+        expected = f'@{self.channel} That song is already in the queue!'
+        self.assertEqual(self.socket.get_last(), expected)
+
+        # add 'test2' to the queue using url from new account
+        author = 'someuser'
+        self.socket.from_twitch('!sr https://open.spotify.com/track/test2',
+                                author, self.channel)
+        await self.wrapper.read()
+        expected = f'@{self.channel} test2 by test2 has been added to the queue!'
+        self.assertEqual(self.socket.get_last(), expected)
