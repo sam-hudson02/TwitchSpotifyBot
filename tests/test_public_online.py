@@ -1,4 +1,3 @@
-import asyncio
 import unittest
 from utils.settings import Settings
 from utils.logger import Log
@@ -12,7 +11,7 @@ from mocks.mock_spot import MockSpot
 # add src to path
 
 
-class TestCommands(unittest.IsolatedAsyncioTestCase):
+class TestPublicOnline(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.creds = Creds()
         self.socket = MockSocket(self.creds)
@@ -113,3 +112,69 @@ class TestCommands(unittest.IsolatedAsyncioTestCase):
         await self.wrapper.read()
         expected = f'@{author2} test by test has been vetoed by chat LUL'
         self.assertEqual(self.socket.get_last(), expected)
+
+    async def testRate(self):
+        await self.dbRefresh()
+        self.socket.from_twitch('!dev-on', self.channel, self.channel)
+
+        # set current song to 'test' by 'test'
+        self.spot.set_current('test')
+        await self.ac.update_context()
+        self.ac.context.requester = self.channel
+
+        # rate the song
+        author = 'someuser'
+        self.socket.from_twitch('!rate', author, self.channel)
+        await self.wrapper.read()
+        expected = f'@{author} has rated @{self.channel}\'s song'
+        self.assertEqual(self.socket.get_last(), expected)
+
+        # check rate has been added to db
+        reciever = await self.db.get_user(self.channel)
+        giver = await self.db.get_user(author)
+        self.assertEqual(reciever.rates, 1)
+        self.assertEqual(giver.ratesGiven, 1)
+
+    async def testRemove(self):
+        await self.dbRefresh()
+        self.socket.from_twitch('!dev-on', self.channel, self.channel)
+
+        # add song 'test' to the queue
+        await self.reqSong('test', 'test', 'test')
+
+        # remove the song
+        self.socket.from_twitch('!rm', self.channel, self.channel)
+        await self.wrapper.read()
+        expected = f'@{self.channel} Your last request, test by test, has been removed from the queue!'
+        self.assertEqual(self.socket.get_last(), expected)
+
+        # check its not in the db
+        next = await self.db.get_next_song()
+        self.assertIsNone(next)
+
+    async def testNext(self):
+        await self.dbRefresh()
+        self.socket.from_twitch('!dev-on', self.channel, self.channel)
+
+        # add song 'test' to the queue
+        await self.reqSong('test', 'test', 'test')
+
+        # test !next command
+        self.socket.from_twitch('!next', self.channel, self.channel)
+        await self.wrapper.read()
+        expected = f'@{self.channel} Next song is test by test as requested by @{self.channel}!'
+        self.assertEqual(self.socket.get_last(), expected)
+
+    async def testSong(self):
+        await self.dbRefresh()
+        self.socket.from_twitch('!dev-on', self.channel, self.channel)
+
+        # set current song to 'test' by 'test'
+        self.spot.set_current('test')
+        await self.ac.update_context()
+        self.ac.context.requester = self.channel
+
+        # test !song command
+        self.socket.from_twitch('!song', self.channel, self.channel)
+        await self.wrapper.read()
+        expected = f'@{self.channel} Current song is test by test as requested by @{self.channel}!'
