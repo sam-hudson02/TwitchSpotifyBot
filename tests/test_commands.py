@@ -1,3 +1,4 @@
+import asyncio
 import unittest
 from utils.settings import Settings
 from utils.logger import Log
@@ -68,7 +69,7 @@ class TestCommands(unittest.IsolatedAsyncioTestCase):
         self.socket.from_twitch('!sr https://open.spotify.com/track/test2',
                                 author, self.channel)
         await self.wrapper.read()
-        expected = f'@{self.channel} test2 by test2 has been added to the queue!'
+        expected = f'@{author} test2 by test2 has been added to the queue!'
         self.assertEqual(self.socket.get_last(), expected)
 
     async def reqSong(self, request, name, artist):
@@ -92,12 +93,23 @@ class TestCommands(unittest.IsolatedAsyncioTestCase):
         await self.dbRefresh()
         self.socket.from_twitch('!dev-on', self.channel, self.channel)
 
-        # add song 'test' to the queue
-        await self.reqSong('test', 'test', 'test')
+        # set veto threshold to 2
+        self.socket.from_twitch('!set-veto 2', self.channel, self.channel)
+        await self.wrapper.read()
+        expected = f'@{self.channel} Veto pass has been set to 2'
+
+        # set current song to 'test' by 'test'
+        self.spot.set_current('test')
+        await self.ac.update_context()
 
         # veto the song
         author = 'someuser'
         self.socket.from_twitch('!veto', author, self.channel)
         await self.wrapper.read()
-        expected = f'@{self.channel} 1 out of 5 chatters have voted to skip the current song!'
+        expected = f'@{author} 1 out of 2 chatters have voted to skip the current song!'
+        self.assertEqual(self.socket.get_last(), expected)
+        author2 = 'someuser2'
+        self.socket.from_twitch('!veto', author2, self.channel)
+        await self.wrapper.read()
+        expected = f'@{author2} test by test has been vetoed by chat LUL'
         self.assertEqual(self.socket.get_last(), expected)

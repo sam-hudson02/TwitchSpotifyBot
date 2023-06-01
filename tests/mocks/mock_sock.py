@@ -28,7 +28,7 @@ class MockSocket(socket.socket):
         return response.encode('utf-8')
 
     def from_twitch(self, msg, author, channel, badges='something/something', sub=False):
-        self._recv = f"@badge-info=;badges={badges},premium/1;client-nonce=2236c00d2eee968a40646ac7b169ed81;color=;display-name={channel};emotes=;first-msg=0;flags=;id=ea69b4b1-a28c-4321-8812-cea9bc5c8d62;mod=0;returning-chatter=0;room-id=151470592;subscriber={int(sub)};tmi-sent-ts=1685411550601;turbo=0;user-id=151470592;user-type= :samtheno0b!samtheno0b@samtheno0b.tmi.twitch.tv PRIVMSG #samtheno0b :{msg}"
+        self._recv = f"@badge-info=;badges={badges},premium/1;client-nonce=2236c00d2eee968a40646ac7b169ed81;color=;display-name={author};emotes=;first-msg=0;flags=;id=ea69b4b1-a28c-4321-8812-cea9bc5c8d62;mod=0;returning-chatter=0;room-id=151470592;subscriber={int(sub)};tmi-sent-ts=1685411550601;turbo=0;user-id=151470592;user-type= :samtheno0b!samtheno0b@samtheno0b.tmi.twitch.tv PRIVMSG #{channel}:{msg}"
 
     def get_last(self):
         raw = self.last_sent.decode('utf-8')

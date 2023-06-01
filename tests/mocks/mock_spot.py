@@ -46,8 +46,12 @@ class MockSpot(Spotify):
             'test3': 'https://open.spotify.com/track/test3',
         }
         self.queue = []
-        self.current = None
+        self.current = self.init_current()
         self.log = Log('Spotify')
+
+    def init_current(self):
+        json = get_mock_json('test3')
+        return json
 
     def search_song(self, query):
         self.log.info(f'Searching for {query}')
@@ -67,6 +71,10 @@ class MockSpot(Spotify):
             raise NoCurrentTrack
         return TrackContext(info)
 
+    def set_current(self, name):
+        self.log.info(f'Setting current to {name}')
+        self.current = get_mock_json(name)
+
     def get_track_info(self, url):
         for name, link in self.song_map.items():
             if link == url:
@@ -83,6 +91,7 @@ class MockSpot(Spotify):
         self.current['progress_ms'] = progress
 
     def next(self):
+        self.log.info('Skipping to next track')
         if len(self.queue) == 0:
             return
         url = self.queue.pop(0)
@@ -90,4 +99,6 @@ class MockSpot(Spotify):
         self.current = get_mock_json(name)
 
     def add_to_queue(self, url):
-        self.queue.append(url)
+        name = url.split('/')[-1]
+        self.log.info(f'Adding {name} to queue')
+        self.queue.append(name)
