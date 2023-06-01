@@ -53,7 +53,8 @@ class Message:
         return Chatter(self.tags, self.wrapper.api)
 
     def _get_message(self, raw: str) -> str:
-        return raw.split(':')[2].strip('\r\n')
+        content = raw.split(':')[2:]
+        return ':'.join(content).strip('\r\n')
 
     def _get_tags(self, raw: str) -> dict:
         tags = raw.split(':')[0]
