@@ -31,7 +31,7 @@ class ModCog(Cog):
         return True
 
     async def skip(self, ctx: Context):
-        if not self.settings.active:
+        if not self.settings.active or self.ac.context.paused:
             raise NotActive
         if not self.ac.context.live:
             await ctx.reply(f'Song request are currently turned off.'
