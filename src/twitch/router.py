@@ -15,7 +15,7 @@ class Context:
         self.msg: Message = msg
         self.chatter = msg.chatter
         self.content = self._get_content()
-        self.log.req(self.user.username, self.command, self.content)
+        self.log.req(self.user.username, self.content, self.command)
 
     async def reply(self, msg: str):
         self.log.resp(msg)
