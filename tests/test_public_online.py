@@ -97,6 +97,9 @@ class TestPublicOnline(unittest.IsolatedAsyncioTestCase):
         await self.wrapper.read()
         expected = f'@{self.channel} Veto pass has been set to 2'
 
+        # request a song that should play after
+        await self.reqSong('test', 'test', 'test')
+
         # set current song to 'test' by 'test'
         self.spot.set_current('test')
         await self.ac.update_context()
@@ -112,6 +115,10 @@ class TestPublicOnline(unittest.IsolatedAsyncioTestCase):
         await self.wrapper.read()
         expected = f'@{author2} test by test has been vetoed by chat LUL'
         self.assertEqual(self.socket.get_last(), expected)
+
+        # check song has been skipped
+        await self.ac.update_context()
+        self.assertEqual(self.ac.context.track, 'test')
 
     async def testRate(self):
         await self.dbRefresh()
@@ -134,6 +141,12 @@ class TestPublicOnline(unittest.IsolatedAsyncioTestCase):
         giver = await self.db.get_user(author)
         self.assertEqual(reciever.rates, 1)
         self.assertEqual(giver.ratesGiven, 1)
+
+        # requester can't rate their own song
+        self.socket.from_twitch('!rate', self.channel, self.channel)
+        await self.wrapper.read()
+        expected = f'@{self.channel} You can\'t rate your own song! LUL'
+        self.assertEqual(self.socket.get_last(), expected)
 
     async def testRemove(self):
         await self.dbRefresh()

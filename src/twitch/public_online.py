@@ -120,7 +120,7 @@ class OnlineCog(Cog):
             return
 
         if self.rate_tracker.is_requester(ctx.user.username):
-            await ctx.reply('You cannot rate your own song! LUL')
+            await ctx.reply('You can\'t rate your own song! LUL')
             return
 
         await self.rate_tracker.add_rate(ctx.user.username)
