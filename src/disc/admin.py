@@ -27,7 +27,6 @@ class AdminCog(commands.Cog):
         self.log.req(user, request, command)
         if not getattr(ctx.permissions, 'administrator', False):
             raise NotAuthorized('administrator')
-        return True
 
     def check():
         def wrapper(func):
@@ -41,9 +40,9 @@ class AdminCog(commands.Cog):
     async def cog_app_command_error(self, ctx, error):
         error = getattr(error, 'original', error)
         if isinstance(error, NotAuthorized):
-            resp = f'Sorry, you need to be a server admin to use this command.'
+            resp = 'Sorry, you need to be a server admin to use this command.'
         else:
-            resp = f'An unknown error occurred'
+            resp = 'An unknown error occurred'
         await ctx.response.send_message(resp)
         self.log.resp(resp)
         self.log.error(error)

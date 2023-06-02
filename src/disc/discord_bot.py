@@ -1,14 +1,14 @@
-import discord 
+import discord
 import time
 from AudioController.spotify_api import Spotify
 from discord.ext import tasks, commands
 from AudioController.audio_controller import AudioController
 from utils import Log, DB, Settings, DiscordCreds
-from utils.errors import *
 from disc.public import PublicCog
 from disc.live_update import AutoUpdate
 from disc.mod import ModCog
 from disc.admin import AdminCog
+
 
 class DiscordBot(commands.Bot):
     def __init__(self, creds: DiscordCreds, twitch_channel, log: Log,
@@ -21,6 +21,8 @@ class DiscordBot(commands.Bot):
         self.db = db
         leaderboard_channel_id = creds.leaderboard_channel_id
         queue_channel_id = creds.queue_channel_id
+        if leaderboard_channel_id is None or queue_channel_id is None:
+            raise Exception('No Queue or Leaderboard Channel ID found.')
         self.leaderboard_channel_id = int(leaderboard_channel_id)
         self.queue_channel_id = int(queue_channel_id)
         self.twitch_channel = twitch_channel
@@ -32,7 +34,7 @@ class DiscordBot(commands.Bot):
     async def check_live(self):
         if self.is_live == self.ac.context.live:
             return
-        
+
         self.is_live = self.ac.context.live
         if self.is_live:
             await self.load_online_cogs()
@@ -45,7 +47,7 @@ class DiscordBot(commands.Bot):
         await self.load_cogs()
         await self.tree.sync()
         self.check_live.start()
-    
+
     async def on_disconnect(self):
         self.log.info('Bot disconnected.')
         while self.is_closed():
@@ -64,16 +66,18 @@ class DiscordBot(commands.Bot):
     async def load_cogs(self):
         await self.load_online_cogs()
         await self.load_offline_cogs()
-    
+
     async def load_online_cogs(self):
-        unload_cogs = [cog for cog in self.online_cogs if cog.__cog_name__ not in self.cogs.keys()]
+        unload_cogs = [
+            cog for cog in self.online_cogs if cog.__cog_name__ not in self.cogs.keys()]
         if not self.ac.context.live:
             return
         for cog in unload_cogs:
             await self.add_cog(cog(self))
-    
+
     async def load_offline_cogs(self):
-        unload_cogs = [cog for cog in self.offline_cogs if cog.__cog_name__ not in self.cogs.keys()]
+        unload_cogs = [
+            cog for cog in self.offline_cogs if cog.__cog_name__ not in self.cogs.keys()]
         for cog in unload_cogs:
             await self.add_cog(cog(self))
 
@@ -81,7 +85,7 @@ class DiscordBot(commands.Bot):
         loaded_cogs = [cog for cog in self.cogs.keys()]
         for cog in loaded_cogs:
             await self.remove_cog(cog)
-    
+
     async def unload_online_cogs(self):
         cog_names = [cog.__cog_name__ for cog in self.online_cogs]
         loaded_cogs = [cog for cog in self.cogs.keys()]
@@ -94,5 +98,3 @@ class DiscordBot(commands.Bot):
             self.check_live.restart()
         else:
             self.check_live.start()
-
-    

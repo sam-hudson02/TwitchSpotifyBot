@@ -14,21 +14,21 @@ class PublicCog(commands.Cog):
         self.log: Log = bot.log
         self.settings: Settings = bot.settings
         self.ac = bot.ac
-    
+
     async def cog_app_command_error(self, ctx, error):
         error = getattr(error, 'original', error)
         if isinstance(error, UserNotFound):
-            resp = f'User "{error.user}" not found in database.'
+            resp = 'User "{error.user}" not found in database.'
         elif isinstance(error, NotActive):
             resp = 'Bot is not active.'
         elif isinstance(error, TrackNotFound):
             resp = 'Track not found.'
         else:
-            resp = f'An unknown error occurred.'
+            resp = 'An unknown error occurred.'
         self.log.resp(resp)
         self.log.error(error)
         await ctx.response.send_message(content=resp, ephemeral=True)
-    
+
     async def cog_before_invoke(self, ctx: discord.Interaction) -> None:
         user = ctx.user.name + '#' + ctx.user.discriminator
         if ctx.message is None:
@@ -37,7 +37,7 @@ class PublicCog(commands.Cog):
             request = ctx.message.content
         command = ctx.command.name
         self.log.req(user, request, command)
-    
+
     def check():
         def wrapper(func):
             @functools.wraps(func)
@@ -46,7 +46,7 @@ class PublicCog(commands.Cog):
                 return await func(self, *args, **kwargs)
             return wrapped
         return wrapper
-        
+
     @discord.app_commands.command(name='stats', description='Gets song request stats of given twitch user.')
     @discord.app_commands.describe(twitch_username='Enter twitch username (not case sensitive)')
     @check()
@@ -66,13 +66,13 @@ class PublicCog(commands.Cog):
         else:
             perc = 'na'
         header = ['Position', 'Rates', 'Request',
-                    'Rate Percentage', 'Rates Given']
+                  'Rate Percentage', 'Rates Given']
         body = [[str(position), str(rates), str(
             requests), perc, str(rates_given)]]
         await interaction.response.send_message(content=f"```\n"
                                                 f"{t2a(header=header, body=body, style=PresetStyle.thin_rounded)}"
                                                 f"\n```", ephemeral=True)
-    
+
     @discord.app_commands.command(name='queue', description='add a track to queue')
     @discord.app_commands.describe(request='enter request')
     @check()
@@ -84,7 +84,7 @@ class PublicCog(commands.Cog):
 
         if not track:
             raise TrackNotFound
-        
+
         resp = f'Added {track} by {artist} to the queue!'
 
         await interaction.response.send_message(content=resp, ephemeral=True)
@@ -100,16 +100,17 @@ class PublicCog(commands.Cog):
 
     def get_pong_embed(self, ctx: discord.Integration):
         embed = discord.Embed(title='🏓 Pong!')
-        
+
         latency = round(self.bot.latency, 2)
-        embed.add_field(name='Latency', value=f'{latency} seconds', inline=False)
+        embed.add_field(
+            name='Latency', value=f'{latency} seconds', inline=False)
 
         cogs = self.get_running_cogs()
         embed.add_field(name='Cogs Running', value=cogs, inline=False)
 
         routines = self.get_running_routines()
         embed.add_field(name='Routines Running', value=routines, inline=False)
-        
+
         status = self.get_status()
         embed.add_field(name='Status', value=status, inline=False)
         return embed
@@ -124,16 +125,20 @@ class PublicCog(commands.Cog):
             else:
                 cogs.append(f'{cog.__cog_name__}: 🔴 Not Running')
         return '\n'.join(cogs)
-    
+
     def get_running_routines(self) -> str:
-        routines = {'Check Live': False, 'Update Playing': False, 'Update Queue': False, 'Update Leaderboard': False}
+        routines = {'Check Live': False, 'Update Playing': False,
+                    'Update Queue': False, 'Update Leaderboard': False}
         routines['Check Live'] = self.bot.check_live.is_running()
         routines_str_list = []
         if self.bot.get_cog('AutoUpdate') is not None:
-            routines['Update Playing'] = self.bot.get_cog('AutoUpdate').get_context.is_running()
-            routines['Update Queue'] = self.bot.get_cog('AutoUpdate').get_queue.is_running()
-            routines['Update Leaderboard'] = self.bot.get_cog('AutoUpdate').get_leaderboard.is_running()
-        
+            routines['Update Playing'] = self.bot.get_cog(
+                'AutoUpdate').get_context.is_running()
+            routines['Update Queue'] = self.bot.get_cog(
+                'AutoUpdate').get_queue.is_running()
+            routines['Update Leaderboard'] = self.bot.get_cog(
+                'AutoUpdate').get_leaderboard.is_running()
+
         for routine in routines.keys():
             if routines[routine]:
                 routines_str_list.append(f'{routine}: 🟢 Running')
@@ -150,7 +155,8 @@ class PublicCog(commands.Cog):
         else:
             status_str_list.append('Live Status: 🔴 Offline')
         if status_active:
-            status_str_list.append(f'SR Status: 🟢 Active ({self.settings.permission.value})')
+            status_str_list.append(
+                f'SR Status: 🟢 Active ({self.settings.permission.value})')
         else:
             status_str_list.append('SR Status: 🔴 Inactive')
         return '\n'.join(status_str_list)

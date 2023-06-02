@@ -14,6 +14,7 @@ import json
 static_folder = os.path.abspath('./src/site/static')
 app = Flask(__name__)
 
+
 class Server:
     def __init__(self):
         if not os.path.exists('./data'):
@@ -66,21 +67,25 @@ class Server:
         else:
             self.log.info("Bot is not running, redirecting to spotify login.")
             redirect = request.base_url + "spotify-redirect"
-            self.spot_oath = spotipy.SpotifyOAuth(client_id=self.creds.spotify.client_id, client_secret=self.creds.spotify.client_secret, 
+            self.spot_oath = spotipy.SpotifyOAuth(client_id=self.creds.spotify.client_id, client_secret=self.creds.spotify.client_secret,
                                                   redirect_uri=redirect, open_browser=False, scope=self.scopes, cache_handler=self.cache)
             return flask.redirect(self.spot_oath.get_authorize_url())
-    
+
     def spotify_callback(self):
         if self.bot_running():
             return flask.redirect("/")
         self.log.info("Spotify callback received.")
+
+        if self.spot_oath is None:
+            return "", 500
+
         code = self.spot_oath.parse_response_code(request.url)
         self.spot_oath.get_access_token(code)
         self.log.info("Spotify login successful, starting bot.")
         if not self.bot_running():
             th.Timer(1, self.start_bots).start()
         return flask.render_template("bot_running.html")
-    
+
     def start_bots(self):
         # check if running on windows or linux
         if self.bot_running():
@@ -104,6 +109,9 @@ class Server:
             return "", 503
 
     def terminate_bot(self):
+        if self.proc is None:
+            return "", 503
+
         if self.bot_running():
             self.proc.terminate()
             self.proc = None
@@ -112,6 +120,9 @@ class Server:
             return "", 503
 
     def restart_bot(self):
+        if self.proc is None:
+            return "", 503
+
         self.log.info("Restarting bot...")
         if self.bot_running():
             self.proc.terminate()
@@ -120,32 +131,35 @@ class Server:
             return "", 200
         else:
             return "", 503
-    
+
     def run(self):
         app.run(host='0.0.0.0', port=5000)
 
 
 if __name__ == "__main__":
     server = Server()
+
     @app.route("/", methods=["GET"])
     def route_index():
         return server.redirect_to_spotify()
+
     @app.route("/spotify-redirect", methods=["GET"])
     def route_spotify_redirect():
         return server.spotify_callback()
+
     @app.route("/bot-check", methods=["GET"])
     def route_bot_check():
         return server.bot_check()
+
     @app.route("/terminate-bot", methods=["GET"])
     def route_terminate_bot():
         return server.terminate_bot()
+
     @app.route("/restart-bot", methods=["GET"])
     def route_restart_bot():
         return server.restart_bot()
+
     @app.route("/static/style.css", methods=["GET"])
     def route_style():
         return flask.send_from_directory(static_folder, "style.css")
     server.run()
-
-    
-

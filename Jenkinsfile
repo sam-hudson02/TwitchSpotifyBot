@@ -22,12 +22,14 @@ pipeline {
                     version = version.toInteger() + 1
                     env.TSB_VERSION = version
                     def versionString = version.toString()
+                  
+                    // add zero to start of version if needed
+                    if (versionString.length() == 2) {
+                        versionString = "0" + versionString
+                    }
+
                     // add . between each number
                     def versionStringFormatted = versionString.split('').join('.')
-                    // add zero to start of version if needed
-                    if (versionStringFormatted.length() == 2) {
-                        versionStringFormatted = "0" + versionStringFormatted
-                    }
 
                     // build docker image with version and latest tags
                     sh "docker build -t samhudson02/sbotify:${versionStringFormatted} -t samhudson02/sbotify:latest ."

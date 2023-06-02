@@ -4,84 +4,97 @@ from utils.logger import Log
 from os import getenv
 
 
+def get_str_env(name: str) -> str:
+    value = getenv(name)
+    if value is None:
+        raise NoCreds(name)
+    return value
+
+
+def get_int_env(name: str) -> int:
+    value = getenv(name)
+    if value is None:
+        raise NoCreds(name)
+    return int(value)
+
+
+def get_bool_env(name: str) -> bool:
+    value = getenv(name)
+    if value is None:
+        raise NoCreds(name)
+    return bool(value)
+
+
+def get_optional_str_env(name: str) -> str | None:
+    value = getenv(name)
+    return value
+
+
+def get_optional_int_env(name: str) -> int | None:
+    value = getenv(name)
+    if value is None:
+        return None
+    return int(value)
+
+
+def get_optional_bool_env(name: str) -> bool | None:
+    value = getenv(name)
+    if value is None:
+        return None
+    return bool(value)
+
+
 class TwitchCreds:
-    def __init__(self, log: Log):
-        self.log = log
-        self.__token= getenv('TWITCH_TOKEN')
-        self.__channel = getenv('TWITCH_CHANNEL')
-    
+    def __init__(self):
+        self.__token = get_str_env('TWITCH_TOKEN')
+        self.__channel = get_str_env('TWITCH_CHANNEL')
+
     @property
     def token(self):
-        if self.__token is None:
-            self.log.critical('Twitch token missing! Not continuing.')
-            raise NoCreds('Twitch Token')
         return self.__token
-    
+
     @property
     def channel(self):
-        if self.__channel is None:
-            self.log.critical('Twitch channel missing! Not continuing.')
-            raise NoCreds('Twitch Channel')
         return self.__channel
 
 
 class DiscordCreds:
-    def __init__(self, log: Log):
-        self.log = log
-        self.__token = getenv('DISCORD_TOKEN')
-        self.__queue_channel_id = getenv('DISCORD_QUEUE_CHANNEL_ID')
-        self.__leaderboard_channel_id = getenv('DISCORD_LEADERBOARD_CHANNEL_ID')
+    def __init__(self):
+        self.__token = get_optional_str_env('DISCORD_TOKEN')
+        self.__queue_channel_id = get_optional_int_env(
+            'DISCORD_QUEUE_CHANNEL_ID')
+        self.__leaderboard_channel_id = get_optional_int_env(
+            'DISCORD_LEADERBOARD_CHANNEL_ID')
 
     @property
     def token(self):
-        if self.__token is None:
-            self.log.critical('Discord token missing!')
         return self.__token
-    
+
     @property
     def queue_channel_id(self):
-        if self.__queue_channel_id is None:
-            self.log.critical('Discord queue channel id missing!')
         return self.__queue_channel_id
-    
+
     @property
     def leaderboard_channel_id(self):
-        if self.__leaderboard_channel_id is None:
-            self.log.critical('Discord leaderboard channel id missing!')
         return self.__leaderboard_channel_id
-
-    def creds_valid(self) -> bool:
-        if self.__token is None or self.__queue_channel_id is None or self.__leaderboard_channel_id is None:
-            return False
-        return True
 
 
 class SpotifyCreds:
-    def __init__(self, log: Log):
-        self.log = log
-        self.__client_id = getenv('SPOTIFY_CLIENT_ID')
-        self.__client_secret = getenv('SPOTIFY_SECRET')
-        self.__username = getenv('SPOTIFY_USERNAME')
+    def __init__(self):
+        self.__client_id = get_str_env('SPOTIFY_CLIENT_ID')
+        self.__client_secret = get_str_env('SPOTIFY_SECRET')
+        self.__username = get_str_env('SPOTIFY_USERNAME')
 
     @property
     def client_id(self):
-        if self.__client_id is None:
-            self.log.critical('Spotify client id missing! Not continuing.')
-            raise NoCreds('Spotify Client ID')
         return self.__client_id
-    
+
     @property
     def client_secret(self):
-        if self.__client_secret is None:
-            self.log.critical('Spotify client secret missing! Not continuing.')
-            raise NoCreds('Spotify Client Secret')
         return self.__client_secret
-    
+
     @property
     def username(self):
-        if self.__username is None:
-            self.log.critical('Spotify username missing! Not continuing.')
-            raise NoCreds('Spotify Username')
         return self.__username
 
 
@@ -90,10 +103,10 @@ class Creds:
         self.log = log
         self.file = file
         self.load_env()
-        self.twitch: TwitchCreds = TwitchCreds(self.log)
-        self.discord: DiscordCreds = DiscordCreds(self.log)
-        self.spotify: SpotifyCreds = SpotifyCreds(self.log)
-        
+        self.twitch: TwitchCreds = TwitchCreds()
+        self.discord: DiscordCreds = DiscordCreds()
+        self.spotify: SpotifyCreds = SpotifyCreds()
+
     def load_env(self):
         try:
             load_dotenv(self.file)

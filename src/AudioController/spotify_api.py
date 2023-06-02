@@ -2,6 +2,7 @@ import spotipy
 from utils import SpotifyCreds
 from utils.errors import BadLink, NoCurrentTrack
 
+
 class Spotify:
     def __init__(self, creds: SpotifyCreds):
         self.user = creds.username
@@ -12,14 +13,18 @@ class Spotify:
         self.sp.search(q='test')
 
     def get_token(self):
-        handler = spotipy.oauth2.CacheFileHandler(cache_path=f'./secret/.cache-{self.user}', username=self.user,
-                                                  )
+        cache_path = f'./secret/.cache-{self.user}'
+        handler = spotipy.oauth2.CacheFileHandler(cache_path=cache_path,
+                                                  username=self.user)
 
-        scopes = 'user-modify-playback-state user-read-playback-state user-read-currently-playing ' \
-                 'user-read-playback-position user-read-recently-played streaming'
+        scopes = 'user-modify-playback-state user-read-playback-state ' \
+                 'user-read-currently-playing user-read-playback-position' \
+                 ' user-read-recently-played streaming'
 
-        return spotipy.SpotifyOAuth(client_id=self.client_id, client_secret=self.secret,
-                                    redirect_uri='https://open.spotify.com/', cache_handler=handler,
+        return spotipy.SpotifyOAuth(client_id=self.client_id,
+                                    client_secret=self.secret,
+                                    redirect_uri='https://open.spotify.com/',
+                                    cache_handler=handler,
                                     open_browser=False, scope=scopes)
 
     def auth(self):
@@ -36,13 +41,15 @@ class Spotify:
             return None
 
     def get_track_info(self, url=None, info=None):
-        if info is None:
-            if url is None:
-                return None, None
-            else:
-                info = self.sp.track(url)
-        if info is None:
+
+        if url is None and info is None:
             raise BadLink
+
+        if info is None:
+            info = self.sp.track(url)
+            if info is None:
+                raise BadLink
+
         link = info['external_urls']['spotify']
         track = info['name']
         artists_info_all = info['artists']
@@ -58,7 +65,7 @@ class Spotify:
         return track, artists, link
 
     @staticmethod
-    def get_track_info_list(info_all):
+    def get_track_info_list(info_all: list):
         track_info_all = []
         for info in info_all:
             track = info['track']['name']
@@ -74,10 +81,7 @@ class Spotify:
             artists = artists.replace("'", '')
             track_info = {'track': track, 'artist': artists}
             track_info_all.append(track_info)
-        if len(track_info_all) != 0:
-            return track_info_all
-        else:
-            return None
+        return track_info_all
 
     def get_current_track(self):
         try:
@@ -132,11 +136,11 @@ class Spotify:
         self.sp.next_track()
         return track, artist
 
-    def get_context(self):
+    def get_context(self) -> dict:
         try:
             info = self.sp.current_user_playing_track()
             if info is None:
-                return None
+                raise NoCurrentTrack
             track = info['item']['name']
             artists_info_all = info['item']['artists']
             artists = []
@@ -160,11 +164,17 @@ class Spotify:
                 playlist = info['context']['external_urls']['spotify']
             except TypeError:
                 playlist = None
-            return {'track': track, 'artist': artists, 'progress': prog, 'duration': length,
-                    'album_art': image, 'playlist': playlist, 'playback_id': track_id, 'paused': paused}
+            return {'track': track,
+                    'artist': artists,
+                    'progress': prog,
+                    'duration': length,
+                    'album_art': image,
+                    'playlist': playlist,
+                    'playback_id': track_id,
+                    'paused': paused}
         except TypeError as er:
             print(er)
-            return None
+            raise NoCurrentTrack
 
     def next(self):
         self.sp.next_track()
@@ -200,3 +210,12 @@ class Spotify:
             return info['context']['external_urls']['spotify']
         except (KeyError, TypeError):
             return None
+
+    def get_queue(self):
+        info = self.sp.queue()
+        queue = info['queue']
+        queue_info = []
+        for track in queue:
+            queue_info.append(track['id'])
+        print(queue_info)
+        return queue_info

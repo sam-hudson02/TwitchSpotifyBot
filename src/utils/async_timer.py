@@ -1,6 +1,8 @@
 import asyncio
 
 # creates a timer that calls a function after given number of milliseconds
+
+
 class Timer:
     def __init__(self, timeout: int, callback: callable, args: list = []):
         # convert milliseconds to seconds
