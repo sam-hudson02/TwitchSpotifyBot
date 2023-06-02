@@ -1,27 +1,7 @@
 from prisma import Prisma
 from prisma.models import User, Queue
-from utils.types import SongReq
+from utils.types import SongReq, Leaderboard
 from utils.errors import TrackAlreadyInQueue
-
-
-class Leaderboard:
-    def __init__(self, sorted: list[User]):
-        self.sorted = sorted
-
-    @property
-    def sorted_users(self) -> str:
-        arr = [user.username for user in self.sorted]
-        return '\n'.join(arr)
-
-    @property
-    def sorted_rates(self) -> str:
-        arr = [str(user.rates) for user in self.sorted]
-        return '\n'.join(arr)
-
-    @property
-    def sorted_position(self) -> str:
-        arr = [str(i + 1) for i in range(len(self.sorted))]
-        return '\n'.join(arr)
 
 
 class DB:
