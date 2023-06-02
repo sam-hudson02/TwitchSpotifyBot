@@ -9,16 +9,19 @@ class Leaderboard:
         self.sorted = sorted
 
     @property
-    def sorted_users(self) -> list[str]:
-        return [user.username for user in self.sorted]
+    def sorted_users(self) -> str:
+        arr = [user.username for user in self.sorted]
+        return '\n'.join(arr)
 
     @property
-    def sorted_rates(self) -> list[int]:
-        return [user.rates for user in self.sorted]
+    def sorted_rates(self) -> str:
+        arr = [str(user.rates) for user in self.sorted]
+        return '\n'.join(arr)
 
     @property
-    def sorted_position(self) -> list[int]:
-        return [i + 1 for i in range(len(self.sorted))]
+    def sorted_position(self) -> str:
+        arr = [str(i + 1) for i in range(len(self.sorted))]
+        return '\n'.join(arr)
 
 
 class DB:
