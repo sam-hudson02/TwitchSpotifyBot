@@ -60,6 +60,7 @@ class Bot:
             await cog.load()
 
     async def on_error(self, msg: Message, error: Exception):
+        self.log.error(f'Error: {error}')
         await msg.reply('An error occurred!')
 
     async def check_live(self):
