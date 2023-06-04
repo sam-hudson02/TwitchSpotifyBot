@@ -20,8 +20,8 @@ class OfflineCog(Cog):
         self.bot.router.add_route('stats', self.stats)
 
     async def help(self, ctx: Context):
-        await ctx.reply('A list of commands can be found here: '
-                        'https://github.com/sam-hudson02/TwitchSpotifyBot/blob/main/Commands.md')
+        await ctx.reply('A list of commands can be found here: \
+                        https://github.com/sam-hudson02/TwitchSpotifyBot/blob/main/Commands.md')
 
     async def sp_status(self, ctx: Context):
         if self.settings.active:
@@ -51,8 +51,8 @@ class OfflineCog(Cog):
         if leader is None:
             resp = "No one has been rated yet!"
         else:
-            resp = f"Current leader is @{leader.username} with {leader.rates}"
-            "rates!"
+            resp = f"Current leader is @{leader.username} with {leader.rates} \
+            rates!"
 
         await ctx.reply(resp)
 
