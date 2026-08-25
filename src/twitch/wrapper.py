@@ -1,5 +1,6 @@
 import asyncio
 from utils.creds import TwitchCreds
+from utils.twitch_token import TwitchToken
 from typing import Awaitable, Callable, Optional
 import socket
 from twitch.message import Message
@@ -10,8 +11,10 @@ import aiohttp
 
 class Wrapper:
     def __init__(self, creds: TwitchCreds,
-                 sock: Optional[socket.socket] = None):
-        self.api = API(creds)
+                 sock: Optional[socket.socket] = None,
+                 token: Optional[TwitchToken] = None):
+        self.token = token or TwitchToken(creds)
+        self.api = API(creds, self.token)
         self.log = Log('Socket')
         self.creds = creds
         self._on_message: Callable[[Message], Awaitable[None]] = self.empty
@@ -29,13 +32,19 @@ class Wrapper:
             if self.sock is None:
                 self.sock = socket.socket()
             self.log.info(f"Connecting to {self.server}:{self.port}")
+            token = await self.token.get()
             self.sock.connect((self.server, self.port))
             self.sock.send('CAP REQ :twitch.tv/membership twitch.tv/tags\n'
                            .encode("utf-8"))
-            self.sock.send(f"PASS oauth:{self.creds.token}\n".encode("utf-8"))
+            self.sock.send(f"PASS oauth:{token}\n".encode("utf-8"))
             self.sock.send(f"NICK {self.creds.bot_name}\n".encode("utf-8"))
             self.sock.send(f"JOIN #{self.creds.channel}\n".encode("utf-8"))
-            self.sock.recv(2048).decode("utf-8")
+            resp = self.sock.recv(2048).decode("utf-8")
+            if 'Login authentication failed' in resp:
+                # token was rejected: refresh it and let the retry loop reconnect
+                self.log.error('Twitch rejected the access token, refreshing')
+                await self.token.get(force=True)
+                raise ConnectionError('Login authentication failed')
             self.log.info('Socket connected')
             await self._on_join(self.creds.channel)
         except Exception as err:
@@ -114,19 +123,19 @@ class Wrapper:
 
 
 class API:
-    def __init__(self, creds: TwitchCreds) -> None:
+    def __init__(self, creds: TwitchCreds, token: TwitchToken) -> None:
         self.creds = creds
+        self.token = token
         self.log = Log('API')
         self.base_url: str = 'https://api.twitch.tv/helix/'
-        # use token from creds
-        self._headers: Optional[dict[str, str]] = None
         self.session = aiohttp.ClientSession()
         self.channel: str = creds.channel
         self._channel_id: Optional[str] = None
 
     async def do_call(self, endpoint: str, params: Optional[dict] = None,
                       headers: Optional[dict] = None,
-                      base_url: Optional[str] = None):
+                      base_url: Optional[str] = None,
+                      retried: bool = False):
         try:
             if base_url is None:
                 base_url = self.base_url
@@ -137,6 +146,12 @@ class API:
                 headers = await self.headers()
             resp = await self.session.get(url, headers=headers,
                                           params=params)
+            if resp.status == 401 and not retried:
+                # the access token was rejected: refresh and retry once
+                self.log.info('Helix returned 401, refreshing access token')
+                await self.token.get(force=True)
+                return await self.do_call(endpoint, params=params,
+                                          base_url=base_url, retried=True)
             if resp.status != 200:
                 err = await resp.json()
                 self.log.error(f'Error calling {endpoint}: {err["message"]}')
@@ -176,15 +191,11 @@ class API:
         return self._channel_id
 
     async def headers(self) -> dict[str, str]:
-        if self._headers is None:
-            headers = {'Authorization': f'Bearer {self.creds.token}'}
-            resp = await self.do_call('validate', headers=headers,
-                                      base_url='https://id.twitch.tv/oauth2/')
-            if resp is None:
-                raise Exception('Could not get client id')
-            headers['Client-Id'] = resp['client_id']
-            self._headers = headers
-        return self._headers
+        token = await self.token.get()
+        return {
+            'Authorization': f'Bearer {token}',
+            'Client-Id': self.creds.client_id,
+        }
 
     async def close(self):
         await self.session.close()

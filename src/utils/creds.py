@@ -46,13 +46,28 @@ def get_optional_bool_env(name: str) -> bool | None:
 
 class TwitchCreds:
     def __init__(self):
-        self.__token = get_str_env('TWITCH_TOKEN')
+        self.__client_id = get_str_env('TWITCH_CLIENT_ID')
+        self.__client_secret = get_optional_str_env('TWITCH_CLIENT_SECRET')
+        self.__refresh_token = get_str_env('TWITCH_REFRESH_TOKEN')
+        self.__access_token = get_str_env('TWITCH_ACCESS_TOKEN')
         self.__channel = get_str_env('TWITCH_CHANNEL')
         self.__bot_name = get_str_env('TWITCH_BOT_NAME')
 
     @property
-    def token(self):
-        return self.__token
+    def client_id(self):
+        return self.__client_id
+
+    @property
+    def client_secret(self):
+        return self.__client_secret
+
+    @property
+    def refresh_token(self):
+        return self.__refresh_token
+
+    @property
+    def access_token(self):
+        return self.__access_token
 
     @property
     def channel(self):
