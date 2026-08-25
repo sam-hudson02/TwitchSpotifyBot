@@ -26,6 +26,9 @@ class TestPublicOnline(unittest.IsolatedAsyncioTestCase):
         log = Log('AC')
         self.ac = AudioController(self.db, self.spot, self.audio_ctx, log)
         self.settings = Settings()
+        # Song-request commands are gated behind settings.active (enabled in
+        # production via !sp-on); enable it here so the online cog is testable.
+        self.settings.set_active(True)
         self.bot = Bot(self.wrapper,  self.db, self.settings,
                        self.ac, self.creds.twitch)
         await self.bot.load_cogs()

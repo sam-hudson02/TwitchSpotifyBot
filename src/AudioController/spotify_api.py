@@ -19,8 +19,7 @@ class Spotify:
 
     def get_token(self):
         cache_path = f'./secret/.cache-{self.user}'
-        handler = spotipy.oauth2.CacheFileHandler(cache_path=cache_path,
-                                                  username=self.user)
+        handler = spotipy.oauth2.CacheFileHandler(cache_path=cache_path)
 
         return spotipy.SpotifyOAuth(client_id=self.client_id,
                                     client_secret=self.secret,

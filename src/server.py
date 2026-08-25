@@ -9,8 +9,9 @@ from flask import Flask, request
 from main import start_twitch_bot, start_discord_hook
 from AudioController.audio_controller import Context
 import threading as th
+from pathlib import Path
 
-static_folder = os.path.abspath('./src/static')
+static_folder = str(Path(__file__).resolve().parent / 'static')
 app = Flask(__name__)
 bot_running_page = f'{static_folder}/bot_running.html'
 
@@ -26,8 +27,7 @@ class Server:
         self.cache_path = f'./secret/.cache-{self.user}'
         self.spotify_connected = False
         self.cache_dict = self.load_cache()
-        self.cache_handler = CacheFileHandler(cache_path=self.cache_path,
-                                              username=self.user)
+        self.cache_handler = CacheFileHandler(cache_path=self.cache_path)
         self.spot_oath = None
         self.settings = Settings()
         self.audio_context = Context()

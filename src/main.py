@@ -31,7 +31,7 @@ async def start_twitch_bot(creds: Creds, settings: Settings, ctx: Context,
 
     t_bot = TwitchBot(service, db, settings, ac, creds.twitch)
     if loop is None:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
     # loop.run_until_complete(t_bot.check_live())
     loop.create_task(t_bot.start())
@@ -55,7 +55,7 @@ async def start_discord_hook(creds: Creds, settings: Settings,
                                disc_creds.leaderboard_webhook,
                                db, channel, disc_log)
     if loop is None:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
     loop.create_task(discord_hook.update())
 
 
@@ -71,11 +71,13 @@ def main():
 
         ac_log = Log('AudioController')
 
-        asyncio.set_event_loop(asyncio.new_event_loop())
-        loop = asyncio.new_event_loop()
-        loop.create_task(start_twitch_bot(creds, settings, ctx, ac_log))
-        loop.create_task(start_discord_hook(creds, settings))
-        loop.run_forever()
+        async def runner():
+            await start_twitch_bot(creds, settings, ctx, ac_log)
+            await start_discord_hook(creds, settings)
+            # keep the loop alive so the background tasks keep running
+            await asyncio.Event().wait()
+
+        asyncio.run(runner())
     except KeyboardInterrupt:
         print('Exiting')
         exit(0)

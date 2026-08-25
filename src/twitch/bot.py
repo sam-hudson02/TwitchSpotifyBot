@@ -77,6 +77,6 @@ class Bot:
             await asyncio.sleep(10)
 
     async def start_routines(self):
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         self.check_live_routine = loop.create_task(self.check_live())
         self.ac_update_routine = loop.create_task(self.ac.update())

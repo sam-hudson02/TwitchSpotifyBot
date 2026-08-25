@@ -136,8 +136,11 @@ class DiscordHook:
     def __del__(self):
         self.log.info('Cleaning up discord hook')
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
         except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-        loop.run_until_complete(self.cleanup())
+            loop = None
+        if loop is not None and loop.is_running():
+            # inside a running loop: schedule cleanup, best-effort
+            loop.create_task(self.cleanup())
+        else:
+            asyncio.run(self.cleanup())
