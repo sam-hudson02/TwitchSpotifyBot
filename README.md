@@ -28,13 +28,7 @@ A full list of commands can be found [here](https://github.com/sam-hudson02/Twit
 
 ## Credentials
 
-However you run the bot, it reads its configuration from `./secret/conf.env`. A template lives at [`examples/conf.env.example`](examples/conf.env.example) — copy it and fill in your values:
-
-```bash
-mkdir -p secret
-cp examples/conf.env.example secret/conf.env
-$EDITOR secret/conf.env
-```
+However you run the bot, it reads its configuration from `./secret/conf.env`. A template lives at [`examples/conf.env.example`](examples/conf.env.example).
 
 The file looks like this:
 
