@@ -37,21 +37,26 @@ class Server:
 
     def validate_cache(self) -> bool:
         self.log.info('Validating cached Spotify token')
+
         if not os.path.exists(self.cache_path):
             self.log.info('No cached Spotify token found')
             return False
+
         with open(self.cache_path, 'r') as f:
             cache_data = json.load(f)
-        
 
-        if cache_data.get('access_token') is None \
-            and cache_data.get('refresh_token') is None:
-            if not self.test_spotify():
-                self.log.error('Cached Spotify token is invalid')
-                with open(self.cache_path, 'w') as f:
-                    json.dump({}, f)
-                return False
-        return True
+            if cache_data.get('access_token') is None \
+                or cache_data.get('refresh_token') is None:
+                self.log.error('Cached Spotify token is missing access or refresh token')
+
+            if self.test_spotify():
+                self.log.info('Cached Spotify token is valid')
+                return True
+
+            self.log.error('Cached Spotify token is invalid')
+            json.dump({}, f)
+
+        return False
 
     def redirect(self):
         redirect_uri = request.base_url + 'callback'
