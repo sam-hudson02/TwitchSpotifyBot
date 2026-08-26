@@ -10,6 +10,12 @@ class Cog:
     def __init__(self, bot: 'Bot'):
         self.bot = bot
 
+    def register(self, command: str, handler) -> None:
+        if not self.bot.commands.enabled(command):
+            return
+        for keyword in self.bot.commands.keywords(command):
+            self.bot.router.add_route(keyword, handler, self)
+
     async def before_invoke(self, ctx: 'Context') -> bool:
         return True
 

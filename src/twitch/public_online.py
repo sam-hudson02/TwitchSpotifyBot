@@ -17,38 +17,40 @@ class OnlineCog(Cog):
         self.db: DB = bot.db
         self.ac: AudioController = bot.ac
         self.settings: Settings = bot.settings
+        self.commands = bot.commands
         self.veto_votes = VetoVotes(self.ac.context)
         self.rate_tracker = RateTracker(self.ac.context, self.db)
 
     async def load(self):
-        self.bot.router.add_route('sr', self.sr, self)
-        self.bot.router.add_route('song', self.song_info, self)
-        self.bot.router.add_route('rm', self.remove_request, self)
-        self.bot.router.add_route('next', self.next_song, self)
-        self.bot.router.add_route('veto', self.veto, self)
-        self.bot.router.add_route('rate', self.rate, self)
+        self.register('SONG_REQUEST', self.sr)
+        self.register('SONG', self.song_info)
+        self.register('REMOVE', self.remove_request)
+        self.register('NEXT', self.next_song)
+        self.register('VETO', self.veto)
+        self.register('RATE', self.rate)
 
     async def on_error(self, msg: Message, error: Exception):
         if isinstance(error, YoutubeLink):
-            await msg.reply('Please use a youtube link!')
+            await msg.reply(self.commands.message('SONG_REQUEST', 'youtube_link'))
         elif isinstance(error, UserBanned):
-            await msg.reply('You are banned from requesting songs!')
+            await msg.reply(self.commands.message('SONG_REQUEST', 'banned'))
         elif isinstance(error, TrackNotFound) or isinstance(error, BadLink):
-            await msg.reply('Sorry, I could not find that song!')
+            await msg.reply(self.commands.message('SONG_REQUEST', 'not_found'))
         elif isinstance(error, BadPerms):
-            await msg.reply(f'Only {error.perm} can use this command at the \
-                              moment!')
+            await msg.reply(self.commands.message('SONG_REQUEST', 'bad_perms',
+                                                  perm=error.perm))
         elif isinstance(error, TrackAlreadyInQueue):
-            await msg.reply('That song is already in the queue!')
+            await msg.reply(self.commands.message('SONG_REQUEST',
+                                                  'already_in_queue'))
         else:
             raise error
 
     async def before_invoke(self, ctx: Context) -> bool:
         if not self.settings.active:
-            await ctx.reply('This command is currently disabled!')
+            await ctx.reply(self.commands.message('SONG_REQUEST', 'disabled'))
             return False
         if not self.ac.context.live:
-            await ctx.reply('This command can only be used while live!')
+            await ctx.reply(self.commands.message('SONG_REQUEST', 'not_live'))
             return False
         return True
 
@@ -66,63 +68,67 @@ class OnlineCog(Cog):
             raise UserBanned
 
         info = await self.ac.add_to_queue(ctx.content, ctx.user.username)
-        await ctx.reply(f'{info.track} by {info.artist} has been added to \
-                          the queue!')
+        await ctx.reply(self.commands.message('SONG_REQUEST', 'added',
+                                              song=info.track,
+                                              artist=info.artist))
 
     async def song_info(self, ctx: Context):
         if self.ac.context.track is None or self.ac.context.paused:
-            await ctx.reply("No song currently playing!")
-
+            await ctx.reply(self.commands.message('SONG', 'not_playing'))
         elif self.ac.context.playing_queue:
-            await ctx.reply(f"Currently playing "
-                            f"{self.ac.context.track} by "
-                            f"{self.ac.context.artist} as requested by "
-                            f"@{self.ac.context.requester} !")
+            await ctx.reply(self.commands.message(
+                'SONG', 'playing_queue', song=self.ac.context.track,
+                artist=self.ac.context.artist,
+                requester=self.ac.context.requester))
         else:
-            await ctx.reply(f"Currently playing "
-                            f"{self.ac.context.track} by "
-                            f"{self.ac.context.artist}!")
+            await ctx.reply(self.commands.message(
+                'SONG', 'playing', song=self.ac.context.track,
+                artist=self.ac.context.artist))
 
     async def next_song(self, ctx: Context):
         next_song = await self.db.get_next_song()
         if next_song is None:
-            await ctx.reply('No songs in queue!')
+            await ctx.reply(self.commands.message('NEXT', 'empty'))
             return
-        await ctx.reply(f'Next song is {next_song.name} by '
-                        f'{next_song.artist} as requested by '
-                        f'@{next_song.requester}!')
+        await ctx.reply(self.commands.message('NEXT', 'next',
+                                              song=next_song.name,
+                                              artist=next_song.artist,
+                                              requester=next_song.requester))
 
     async def remove_request(self, ctx: Context):
         req = await self.bot.db.remove_last_request(ctx.user.username)
         if req is None:
-            await ctx.reply('You have no requests in the queue!')
+            await ctx.reply(self.commands.message('REMOVE', 'no_requests'))
         else:
-            await ctx.reply(f'Your last request, {req.name} by {req.artist}, '
-                            f'has been removed from the queue!')
+            await ctx.reply(self.commands.message('REMOVE', 'removed',
+                                                  song=req.name,
+                                                  artist=req.artist))
 
     async def veto(self, ctx: Context):
         if self.veto_votes.user_voted(ctx.user.username):
-            await ctx.reply('You have already voted to veto the current song!')
+            await ctx.reply(self.commands.message('VETO', 'already_voted'))
             return
         votes = self.veto_votes.add_vote(ctx.user.username)
         if votes >= self.settings.veto_pass:
-            await ctx.reply(f'{self.ac.context.track} by '
-                            f'{self.ac.context.artist} has been vetoed by chat'
-                            ' LUL')
+            await ctx.reply(self.commands.message(
+                'VETO', 'vetoed', song=self.ac.context.track,
+                artist=self.ac.context.artist))
             await self.ac.play_next(skipped=True)
         else:
-            await ctx.reply(f'{votes} out of {self.settings.veto_pass} '
-                            'chatters have voted to skip the current song!')
+            await ctx.reply(self.commands.message(
+                'VETO', 'voted', votes=votes,
+                veto_pass=self.settings.veto_pass))
 
     async def rate(self, ctx: Context):
         if self.rate_tracker.user_rated(ctx.user.username):
-            await ctx.reply('You have already rated this song!')
+            await ctx.reply(self.commands.message('RATE', 'already_rated'))
             return
 
         if self.rate_tracker.is_requester(ctx.user.username):
-            await ctx.reply('You can\'t rate your own song! LUL')
+            await ctx.reply(self.commands.message('RATE', 'own_song'))
             return
 
         await self.rate_tracker.add_rate(ctx.user.username)
-        await ctx.send(f'@{ctx.user.username} has rated '
-                       f'@{self.ac.context.requester}\'s song ')
+        await ctx.send(self.commands.message(
+            'RATE', 'rated', user=ctx.user.username,
+            requester=self.ac.context.requester))
