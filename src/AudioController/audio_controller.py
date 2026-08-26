@@ -6,7 +6,28 @@ from AudioController.spotify_api import Spotify
 import time
 from utils.async_timer import Timer
 from utils import Log, DB, SongReq
+from urllib.parse import urlparse
 import asyncio
+
+YOUTUBE_HOSTS = {'youtube.com', 'youtu.be', 'music.youtube.com'}
+
+
+def is_youtube_url(word: str) -> bool:
+    host = urlparse(word).hostname
+    if host is None:
+        return False
+    return host in YOUTUBE_HOSTS or host.endswith('.youtube.com')
+
+
+def is_spotify_track_url(word: str) -> bool:
+    parsed = urlparse(word)
+    return parsed.hostname == 'open.spotify.com' \
+        and parsed.path.startswith('/track')
+
+
+def is_url(word: str) -> bool:
+    parsed = urlparse(word)
+    return bool(parsed.scheme and parsed.netloc)
 
 
 class Context:
@@ -72,38 +93,26 @@ class AudioController:
         self.history = []
 
     async def add_to_queue(self, req: str, user: str) -> TrackInfo:
-        # deals with youtube request with link in request
-        if 'https://www.youtube.com' in req or 'https://youtu.be/' in req:
-            raise YoutubeLink
-
         words = req.split(' ')
 
-        # deals with spotify request with link in request
-        if 'open.spotify.com/track' in req:
-            link = None
-            for word in words:
-                if 'http' in word:
-                    link = word
-                    link = link.strip('\r')
-                    link = link.strip('\n')
-            if link is None:
-                raise TrackNotFound
-            info = self.spot.get_track_info(url=link)
+        # deals with youtube request with link in request
+        if any(is_youtube_url(word) for word in words):
+            raise YoutubeLink
 
-        elif 'spotify:track:' in req:
-            words = req.split(' ')
-            link = None
-            for word in words:
-                if 'spotify:track:' in word:
-                    link = word
-                    link = link.strip('\r')
-                    link = link.strip('\n')
-            if link is None:
-                raise TrackNotFound
-            info = self.spot.get_track_info(url=link)
+        # deals with spotify request with link in request
+        spotify_link = next(
+            (w.strip() for w in words if is_spotify_track_url(w)), None)
+        spotify_uri = next(
+            (w.strip() for w in words if w.startswith('spotify:track:')), None)
+
+        if spotify_link is not None:
+            info = self.spot.get_track_info(url=spotify_link)
+
+        elif spotify_uri is not None:
+            info = self.spot.get_track_info(url=spotify_uri)
 
         # raise error if link isn't spotify or youtube
-        elif 'http' in req:
+        elif any(is_url(word) for word in words):
             raise UnsupportedLink
 
         # deals spotify request without link in request

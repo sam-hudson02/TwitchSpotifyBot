@@ -13,7 +13,7 @@ SONG_REQUEST:
     added: "{song} by {artist} has been added to the queue!"
     disabled: "This command is currently disabled!"
     not_live: "This command can only be used while live!"
-    youtube_link: "Please use a youtube link!"
+    youtube_link: "YouTube links aren't supported, please use a Spotify link or song name!"
     banned: "You are banned from requesting songs!"
     not_found: "Sorry, I could not find that song!"
     bad_perms: "Only {perm} can use this command at the moment!"
