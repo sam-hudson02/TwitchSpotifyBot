@@ -17,23 +17,17 @@ class Chatter:
         return 'broadcaster' in badges
 
     async def is_subscriber(self):
-        if self.tags['subscriber'] == '1':
-            return True
-        return False
+        return self.tags.get('subscriber') == '1'
 
     async def is_mod(self):
-        if self.tags['mod'] == '1':
-            return True
-        return False
+        return self.tags.get('mod') == '1'
 
     async def is_follower(self) -> bool:
         # TODO: make this work
         return await self.api.is_follower(self.id)
 
     async def is_vip(self):
-        if self.tags['vip'] == '1':
-            return True
-        return False
+        return self.tags.get('vip') == '1'
 
 
 class Message:
