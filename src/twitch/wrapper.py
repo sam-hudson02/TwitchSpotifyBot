@@ -77,9 +77,9 @@ class Wrapper:
                 self.log.info(f"Retrying connection {tries + 1}/5")
                 await self.connect(tries + 1)
             else:
-                self.log.error('Max retries reached')
-                # exit entire program
-                exit(1)
+                self.log.critical('Max retries reached, giving up on the \
+                                  Twitch connection')
+                raise ConnectionError('Could not connect to Twitch IRC')
 
     def _close_sockets(self):
         for name in ('send_sock', 'read_sock'):
@@ -151,19 +151,30 @@ class Wrapper:
         self._on_offline = func
 
     def is_message(self, resp: str) -> bool:
-        return resp.startswith("@")
+        return resp.startswith("@") and " PRIVMSG " in resp
 
     async def read(self):
-        # routes chat from the anonymous connection, so the bot also sees
-        # messages sent from its own account
         if self.read_sock is None:
             return
-        resp = self.read_sock.recv(2048).decode("utf-8")
-        if resp.startswith("PING"):
-            self.read_sock.send("PONG\n".encode("utf-8"))
-        elif len(resp) > 0 and self.is_message(resp):
-            msg = Message(resp, self)
-            await self._on_message(msg)
+        data = self.read_sock.recv(2048).decode("utf-8")
+        for line in data.split("\r\n"):
+            await self._handle_line(line)
+
+    async def _handle_line(self, line: str):
+        if not line:
+            return
+        if line.startswith("PING"):
+            if self.read_sock is not None:
+                self.read_sock.send("PONG\n".encode("utf-8"))
+            return
+        if not self.is_message(line):
+            return
+        try:
+            msg = Message(line, self)
+        except Exception as e:
+            self.log.error(f'Could not parse message: {e}')
+            return
+        await self._on_message(msg)
 
     async def listen(self):
         self.log.info('Listening to socket')
