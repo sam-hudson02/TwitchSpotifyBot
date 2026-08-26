@@ -50,11 +50,11 @@ VETO:
     vetoed: "{song} by {artist} has been vetoed by chat LUL"
 
 RATE:
-  keywords: [rate]
+  keywords: [like]
   enabled: true
   messages:
-    already_rated: "You have already rated this song!"
-    own_song: "You can't rate your own song! LUL"
+    already_rated: "You have already liked this song!"
+    own_song: "You can't like your own song! LUL"
     rated: "@{user} has rated @{requester}'s song "
 
 # --- Always available (OfflineCog) ---

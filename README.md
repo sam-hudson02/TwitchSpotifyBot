@@ -7,7 +7,7 @@ A full list of commands can be found [here](https://github.com/sam-hudson02/Twit
 ## Features
 
 - **Chat song requests**: viewers request songs by name or Spotify link with `!sr`, and the track is added straight to your Spotify queue.
-- **Rating & leaderboard**: viewers rate the requester of the current song (`!rate` / `!like`), with per-user stats (`!stats`), a top-requester leaderboard (`!leader`), and optional automatic weekly or monthly resets.
+- **Liking & leaderboard**: viewers can like the current song (`!like`), with per-user stats (`!stats`), a top-requester leaderboard (`!leader`).
 - **Veto voting**: chat can vote to skip the current song (`!veto`); a configurable number of votes skips it.
 - **Request permissions**: limit requests to everyone, followers, subscribers, or privileged users (subs/VIPs/mods), toggled live by moderators.
 - **Moderation**: ban or timeout users from requesting, mod/unmod users, and clear the queue.
