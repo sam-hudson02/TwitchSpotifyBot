@@ -1,0 +1,32 @@
+[project]
+name = "music-bot"
+version = "1.1.0"
+description = "Twitch/Discord Spotify song-request bot"
+readme = "README.md"
+authors = [
+    { name = "Sam Hudson", email = "samhudson@outlook.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "aiohttp>=3.14.3",
+    "discord.py>=2.7.1",
+    "flask>=3.1.3",
+    "prisma>=0.15.0",
+    "python-dotenv>=1.2.3",
+    "pyyaml>=6.0",
+    "spotipy>=2.26.0",
+    "table2ascii>=1.2.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.pyright]
+# uv creates the virtualenv here; point pyright at it so third-party imports
+# (discord, spotipy, flask, prisma, ...) resolve.
+venvPath = "."
+venv = ".venv"
+# the code uses flat imports (e.g. `from utils import ...`) that rely on src/ and
+# tests/ being source roots.
+extraPaths = ["src", "tests"]
+pythonVersion = "3.14"

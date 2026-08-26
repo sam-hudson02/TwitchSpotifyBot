@@ -1,12 +1,13 @@
 import os
-import threading as th
 from AudioController.spotify_api import Spotify
-from twitch.twitch_bot import TwitchBot
-from disc.discord_bot import DiscordBot
+from twitch.bot import Bot as TwitchBot
+from disc.webhook import DiscordHook
 from os.path import exists
-from utils.errors import *
 from AudioController.audio_controller import AudioController, Context
+from twitch.wrapper import Wrapper
 from utils import Log, DB, Settings, Creds
+import asyncio
+from typing import Optional
 
 
 def init_data_dir():
@@ -14,53 +15,72 @@ def init_data_dir():
         os.mkdir('./data')
 
 
-def start_twitch_bot(db_log: Log, creds: Creds, settings: Settings, ctx: Context, ac_log: Log):
-    twitch_log = Log('Twitch', settings.log)
+async def start_twitch_bot(creds: Creds, settings: Settings, ctx: Context,
+                           ac_log: Log,
+                           loop: Optional[asyncio.AbstractEventLoop] = None):
+    service = Wrapper(creds.twitch)
 
-    db = DB(db_log)
+    db = DB()
+    await db.connect()
     s_bot = Spotify(creds.spotify)
 
     twitch_channel = creds.twitch.channel.lower()
-
-    db.check_user_exists(twitch_channel)
-    db.admin_user(twitch_channel)
+    await db.admin_user(twitch_channel)
 
     ac = AudioController(db, s_bot, ctx, ac_log)
 
-    t_bot = TwitchBot(creds.twitch, twitch_log, db, ac, settings)
-    t_bot.run()
+    t_bot = TwitchBot(service, db, settings, ac, creds.twitch)
+    if loop is None:
+        loop = asyncio.get_running_loop()
+
+    # loop.run_until_complete(t_bot.check_live())
+    loop.create_task(t_bot.start())
 
 
-def start_discord_bot(db_log: Log, creds: Creds, settings: Settings, ctx: Context, ac_log: Log):
-    discord_log = Log('Discord', settings.log)
+async def start_discord_hook(creds: Creds, settings: Settings,
+                             loop: Optional[asyncio.AbstractEventLoop] = None):
+    disc_creds = creds.discord
+    channel = creds.twitch.channel
 
-    db = DB(db_log)
-    s_bot = Spotify(creds.spotify)
+    disc_log = Log('Discord')
 
-    ac = AudioController(db, s_bot, ctx, ac_log)
+    if not (disc_creds.queue_webhook or disc_creds.leaderboard_webhook):
+        disc_log.error('No Discord Webhooks Provided')
+        return
 
-    d_bot = DiscordBot(creds.discord, creds.twitch.channel, discord_log, s_bot, db, ac, settings)
-    d_bot.run(creds.discord.token)
+    db = DB()
+    await db.connect()
+
+    discord_hook = DiscordHook(disc_creds.queue_webhook,
+                               disc_creds.leaderboard_webhook,
+                               db, channel, disc_log)
+    if loop is None:
+        loop = asyncio.get_running_loop()
+    loop.create_task(discord_hook.update())
 
 
 def main():
-    init_data_dir()
+    try:
+        init_data_dir()
 
-    main_log = Log('Main', True)
+        main_log = Log('Main', True)
 
-    creds = Creds(main_log)
-    settings = Settings()
-    ctx = Context()
+        creds = Creds(main_log)
+        settings = Settings()
+        ctx = Context()
 
-    # Database log is used for both twitch and discord bots DB instances
-    # Database not initialized in main function as it cannot be shared between threads
-    db_log = Log('Database', settings.log)
-    ac_log = Log('AudioController', settings.log)
+        ac_log = Log('AudioController')
 
-    if creds.discord.creds_valid() and settings.discord_bot:
-        th.Thread(target=start_discord_bot, args=(
-            db_log, creds, settings, ctx, ac_log), daemon=True).start()
-    start_twitch_bot(db_log, creds, settings, ctx, ac_log)
+        async def runner():
+            await start_twitch_bot(creds, settings, ctx, ac_log)
+            await start_discord_hook(creds, settings)
+            # keep the loop alive so the background tasks keep running
+            await asyncio.Event().wait()
+
+        asyncio.run(runner())
+    except KeyboardInterrupt:
+        print('Exiting')
+        exit(0)
 
 
 if __name__ == "__main__":

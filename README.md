@@ -1,87 +1,120 @@
 # TwitchSpotifyBot
 
-TwitchSpotifyBot is a self hosted spotify song request bot for twitch with discord integration, like command and channel sr leaderboard.
+TwitchSpotifyBot is a self-hosted Spotify song-request bot for Twitch, with optional Discord integration for posting the live queue and a channel song-request leaderboard.
 
 A full list of commands can be found [here](https://github.com/sam-hudson02/TwitchSpotifyBot/blob/main/Commands.md).
 
-# Installation
+## Features
+
+- **Chat song requests**: viewers request songs by name or Spotify link with `!sr`, and the track is added straight to your Spotify queue.
+- **Liking & leaderboard**: viewers can like the current song (`!like`), with per-user stats (`!stats`), a top-requester leaderboard (`!leader`).
+- **Veto voting**: chat can vote to skip the current song (`!veto`); a configurable number of votes skips it.
+- **Request permissions**: limit requests to everyone, followers, subscribers, or privileged users (subs/VIPs/mods), toggled live by moderators.
+- **Moderation**: ban or timeout users from requesting, mod/unmod users, and clear the queue.
+- **Live-aware**: only takes requests while the channel is live.
+- **Discord integration (optional)**: posts a live-updating queue and leaderboard to Discord through webhooks.
 
 ## Prerequisites
 
-- A spotify premium account
-- [Spotify](https://developer.spotify.com/dashboard/login) client id and secret keys ([Guide](https://medium.com/@maxtingle/getting-started-with-spotifys-api-spotipy-197c3dc6353b))
-  - **If you're running locally make sure to set your redirect url to "https://open.spotify.com/"**
-  - **If you're running from docker make sure to set your redirect url to the address of the host, followed by /spotify-redirect.** e.g. (http://192.168.1.1:5000/spotify-redirect)
-- A twitch account for the bot (can be your regular twitch account)
-- A twitch api token (you can generate a token [here](https://twitchtokengenerator.com/))
-- python3 installed on your system if you plan to run the bots locally
+- A Spotify Premium account
+- A [Spotify](https://developer.spotify.com/dashboard/login) app for its client ID and secret ([guide](https://medium.com/@maxtingle/getting-started-with-spotifys-api-spotipy-197c3dc6353b)). In the app's settings, add a redirect URI. Spotify requires a loopback IP or HTTPS — plain `localhost` is [no longer accepted](https://developer.spotify.com/documentation/web-api/concepts/redirect_uri):
+  - **Local machine:** add `http://127.0.0.1:5000/callback`, and open the bot at `http://127.0.0.1:5000` (use the IP, not `localhost`).
+  - **Remote host (e.g. a Raspberry Pi on your LAN):** Spotify requires HTTPS for non-loopback addresses. Either put the bot behind an HTTPS reverse proxy / tunnel (Caddy, Cloudflare Tunnel, Tailscale…) and register that `https://…/callback` URL, or do the one-time Spotify login on your local machine at `http://127.0.0.1:5000` and copy the generated `secret/.cache-<spotify-username>` file over to the host — the bot refreshes the token automatically from then on.
+- A Twitch account for the bot to post as (your own account works fine)
+- Twitch OAuth credentials (a client id, an access token and a refresh token) for that account, with the scopes `chat:read`, `chat:edit`, `user:read:chat` and `moderator:read:followers`. Recommended to use [this twitchtokengenerator.com link](https://twitchtokengenerator.com/?scope=chat:read+chat:edit+user:read:chat+moderator:read:followers), which pre-fills the required scopes: click **Custom Scope Token**, then scroll to the bottom and click **Generate Token** to authorize.
 
 ### Optional
 
-- A [discord](https://discord.com/developers/applications) bot application ([Guide](https://youtu.be/b61kcgfOm_4?t=35))
+- A Discord [webhook URL](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks) for the channel where you want the queue and/or leaderboard posted. You can use one webhook for the queue and another for the leaderboard.
 
-## Docker installation
+## Credentials
 
-- Pull the docker image using:
+However you run the bot, it reads its configuration from `./secret/conf.env`. A template lives at [`examples/conf.env.example`](examples/conf.env.example).
 
-```bash
-docker pull samhudson02/sbotify:latest
+The file looks like this:
+
+```env
+SPOTIFY_CLIENT_ID=your spotify client id
+SPOTIFY_SECRET=your spotify secret
+SPOTIFY_USERNAME=your spotify username
+TWITCH_CLIENT_ID=your twitch app client id
+TWITCH_ACCESS_TOKEN=your twitch access token
+TWITCH_REFRESH_TOKEN=your twitch refresh token
+TWITCH_CLIENT_SECRET=          # only for confidential apps; blank for a public client
+TWITCH_CHANNEL=the channel the bot joins
+TWITCH_BOT_NAME=the twitch account the bot posts as
+
+# Optional Discord integration (webhook URLs)
+DISCORD_QUEUE_WEBHOOK=
+DISCORD_LEADERBOARD_WEBHOOK=
 ```
 
-- Or if you're running on a raspberry pi, use:
+`TWITCH_CHANNEL` is the channel the bot listens in; `TWITCH_BOT_NAME` is the account it speaks as (often the same account). Leave the Discord lines blank if you don't want Discord integration.
 
-```bash
-docker pull samhudson02/sbotify:latest-arm
-```
 
-- Example compose file:
+## Configuring commands
+
+Every command's keyword(s) and response messages are configurable. On first run the bot writes `data/commands.yml` (under the mounted `./data` folder when running in Docker); edit it and restart to apply changes. Each entry looks like:
 
 ```yaml
-version: "3.9"
-
-services:
-  sbotify:
-    image: samhudson02/sbotify
-    restart: always
-    ports:
-      - "5000:5000"
-    volumes:
-      - /path/to/your/file:/Sbotify/data
-    environment:
-      - SPOTIFY_CLIENT_ID=Your spotify client ID here
-      - SPOTIFY_SECRET=Your spotify secret here
-      - SPOTIFY_USERNAME=Your spotify username here
-      - TWITCH_TOKEN=Your twitch token here
-      - TWITCH_CHANNEL=Your twitch channel here
-      - DISCORD_TOKEN=Optional discord token here
-      - DISCORD_LEADERBOARD_CHANNEL_ID=Optional leaderboard ID here
-      - DISCORD_QUEUE_CHANNEL_ID=Optional queue ID here
+SONG_REQUEST:
+  keywords: [sr, songrequest]   # chat triggers, used as !sr / !songrequest
+  enabled: true                 # set false to disable the command
+  messages:
+    added: "{song} by {artist} has been added to the queue!"
+    not_found: "Sorry, I could not find that song!"
 ```
 
-- Go to your host address and you should be redirected to login to spotify
+- `keywords` — one or more aliases (chat prefixes them with `!`).
+- `enabled` — set `false` to turn a command off.
+- `messages` — response templates. `{placeholders}` such as `{song}`, `{artist}`, `{user}`, `{requester}` and `{votes}` are filled in by the bot; unknown placeholders are left as-is.
 
-## Local installation
+Anything you leave out falls back to the defaults, so you only need to include the commands and messages you want to change. The full default set is in [`src/utils/default_commands.yml`](src/utils/default_commands.yml).
 
-- Install dependencies using:
+## Running with Docker (recommended)
 
+1. Create a deployment directory:
+
+   ```bash
+   mkdir -p sbotify/secret sbotify/data && cd sbotify
+   ```
+  
+2. Fill out credentials (see above).
+
+3. Add a `docker-compose.yml` — it only needs the published image and two mounts:
+
+   ```yaml
+   services:
+     sbotify:
+       image: samhudson02/sbotify:latest
+       container_name: sbotify
+       restart: unless-stopped
+       ports:
+         - "5000:5000"
+       volumes:
+         - ./secret:/Sbotify/secret   # conf.env and the cached Spotify token
+         - ./data:/Sbotify/data       # sqlite database, logs and settings.yml
+   ```
+
+4. Start it, then visit `http://<host>:5000` and log in to Spotify. Once authenticated the bot connects to Twitch and starts taking requests.
+
+   ```bash
+   docker compose up -d
+   ```
+
+5. Mod the bot in Twitch chat (if running the bot as a different account)
+
+## Running locally
+
+The project uses [uv](https://docs.astral.sh/uv/). With uv installed:
+
+```bash
+uv sync                 # create the venv and install dependencies (Python 3.14)
+uv run prisma generate  # generate the Prisma client (needs Node.js on PATH)
+uv run prisma db push   # create ./data/db.sqlite3 from the schema
+uv run python src/server.py
 ```
-pip install -r requirements.txt
-```
 
-- Create folder called 'secret' in 'TwitchSpotifyBot' directory
-- In the 'secret' folder create a file called 'conf.env'
-- Open conf.env and enter the following information:
+Then open `http://localhost:5000` and log in to Spotify.
 
-```
-SPOTIFY_CLIENT_ID="YOUR SPOTIFY CLIENT ID HERE"
-SPOTIFY_SECRET="YOUR SPOTIFY SECRET HERE"
-SPOTIFY_USERNAME="YOUR SPOTIFY USERNAME HERE"
-TWITCH_TOKEN="YOUR TWITCH TOKEN HERE"
-TWITCH_CHANNEL="YOUR TWITCH CHANNEL HERE"
-DISCORD_TOKEN="OPTIONAL DISCORD TOKEN HERE"
-DISCORD_LEADERBOARD_CHANNEL_ID="OPTIONAL DISCORD LEADERBOARD CHANNEL ID HERE"
-DISCORD_QUEUE_CHANNEL_ID="OPTIONAL DISCORD QUEUE CHANNEL ID HERE"
-```
-
-- Run src/main.py
-- Follow instructions to authenticate spotify account
+`prisma generate` shells out to the Node-based Prisma CLI, so you need Node.js available when running locally. The Docker image installs it for you.

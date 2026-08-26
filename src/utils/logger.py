@@ -1,6 +1,18 @@
 import logging
 from datetime import datetime
 from os.path import exists
+import os
+
+
+def init_dirs():
+    if not os.path.exists('./data'):
+        os.mkdir('./data')
+    if not os.path.exists('./data/sbotify.log'):
+        with open('./data/sbotify.log', 'w') as f:
+            f.close()
+    if not os.path.exists('./data/server.log'):
+        with open('./data/server.log', 'w') as f:
+            f.close()
 
 
 class Log:

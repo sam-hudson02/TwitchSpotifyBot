@@ -46,37 +46,51 @@ def get_optional_bool_env(name: str) -> bool | None:
 
 class TwitchCreds:
     def __init__(self):
-        self.__token = get_str_env('TWITCH_TOKEN')
+        self.__client_id = get_str_env('TWITCH_CLIENT_ID')
+        self.__client_secret = get_optional_str_env('TWITCH_CLIENT_SECRET')
+        self.__refresh_token = get_str_env('TWITCH_REFRESH_TOKEN')
+        self.__access_token = get_str_env('TWITCH_ACCESS_TOKEN')
         self.__channel = get_str_env('TWITCH_CHANNEL')
+        self.__bot_name = get_str_env('TWITCH_BOT_NAME')
 
     @property
-    def token(self):
-        return self.__token
+    def client_id(self):
+        return self.__client_id
+
+    @property
+    def client_secret(self):
+        return self.__client_secret
+
+    @property
+    def refresh_token(self):
+        return self.__refresh_token
+
+    @property
+    def access_token(self):
+        return self.__access_token
 
     @property
     def channel(self):
         return self.__channel
 
+    @property
+    def bot_name(self):
+        return self.__bot_name
+
 
 class DiscordCreds:
     def __init__(self):
-        self.__token = get_optional_str_env('DISCORD_TOKEN')
-        self.__queue_channel_id = get_optional_int_env(
-            'DISCORD_QUEUE_CHANNEL_ID')
-        self.__leaderboard_channel_id = get_optional_int_env(
-            'DISCORD_LEADERBOARD_CHANNEL_ID')
+        self.__queue_webhook = get_optional_str_env('DISCORD_QUEUE_WEBHOOK')
+        self.__leaderboard_webhook = get_optional_str_env(
+            'DISCORD_LEADERBOARD_WEBHOOK')
 
     @property
-    def token(self):
-        return self.__token
+    def queue_webhook(self):
+        return self.__queue_webhook
 
     @property
-    def queue_channel_id(self):
-        return self.__queue_channel_id
-
-    @property
-    def leaderboard_channel_id(self):
-        return self.__leaderboard_channel_id
+    def leaderboard_webhook(self):
+        return self.__leaderboard_webhook
 
 
 class SpotifyCreds:
@@ -84,6 +98,9 @@ class SpotifyCreds:
         self.__client_id = get_str_env('SPOTIFY_CLIENT_ID')
         self.__client_secret = get_str_env('SPOTIFY_SECRET')
         self.__username = get_str_env('SPOTIFY_USERNAME')
+        self.scopes = 'user-modify-playback-state user-read-playback-state ' \
+            'user-read-currently-playing user-read-playback-position' \
+            ' user-read-recently-played streaming'
 
     @property
     def client_id(self):
@@ -99,7 +116,8 @@ class SpotifyCreds:
 
 
 class Creds:
-    def __init__(self, log: Log, file: str = './secret/conf.env'):
+    def __init__(self, log: Log = Log('main'),
+                 file: str = './secret/conf.env'):
         self.log = log
         self.file = file
         self.load_env()

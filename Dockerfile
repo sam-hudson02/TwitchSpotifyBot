@@ -1,17 +1,31 @@
-FROM alpine:latest
+FROM python:3.14-slim
 
-RUN apk add --update --no-cache python3
-RUN python3 -m ensurepip
+# unbuffered stdout/stderr so logs reach `docker logs` in real time
+ENV PYTHONUNBUFFERED=1
 
-RUN mkdir /Sbotify
-RUN mkdir /Sbotify/data
-RUN mkdir /Sbotify/secret
+# Bring in the uv binary
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Node.js is required by prisma-client-py to fetch/run the Prisma CLI
+# (used by both `prisma generate` at build time and `prisma migrate deploy`
+# at runtime).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends nodejs npm \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /Sbotify
 
+# Install dependencies first (cached unless the lockfile changes)
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev
+
+# App source + Prisma schema/migrations
 COPY src src
-COPY requirements.txt requirements.txt
+COPY prisma prisma
 
-RUN pip3 install --no-cache-dir -r requirements.txt
+# Generate the Prisma client into the venv
+RUN uv run prisma generate
 
-CMD ["python3", "src/site/app.py"]
+RUN mkdir -p data secret
+
+CMD ["sh", "-c", "uv run prisma migrate deploy && uv run python src/server.py"]

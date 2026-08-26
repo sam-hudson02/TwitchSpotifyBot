@@ -1,0 +1,21 @@
+# Example Compose file for self-hosting the bot from the published image.
+#
+# You don't need to clone the repo. Just drop this file in a directory next to a
+# secret/conf.env (see the README) and a data/ folder:
+#
+#   mkdir -p secret data
+#   $EDITOR secret/conf.env
+#   docker compose up -d
+#
+# Open http://<host>:5000 in a browser and log in to Spotify.
+
+services:
+  sbotify:
+    image: samhudson02/sbotify:latest
+    container_name: sbotify
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./secret:/Sbotify/secret   # conf.env and the cached Spotify token
+      - ./data:/Sbotify/data       # sqlite database, logs and settings.yml
