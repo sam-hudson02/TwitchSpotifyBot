@@ -28,8 +28,8 @@ class OfflineCog(Cog):
             if self.bot.ac.context.live:
                 resp = self.get_perm_resp()
             else:
-                resp = "Song request are turned on but won't be taken till "
-                f"{self.bot.channel} is live."
+                resp = f"Song request are turned on but won't be taken till \
+                {self.bot.channel} is live."
         else:
             resp = 'Song request are turned off.'
         await ctx.reply(resp)
