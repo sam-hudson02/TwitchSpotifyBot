@@ -1,6 +1,6 @@
 [project]
 name = "music-bot"
-version = "0.1.0"
+version = "1.1.0"
 description = "Twitch/Discord Spotify song-request bot"
 readme = "README.md"
 authors = [
