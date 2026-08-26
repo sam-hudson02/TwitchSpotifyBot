@@ -3,7 +3,7 @@ from utils import Log, Creds, init_dirs, Settings
 import asyncio
 import os
 from spotipy.oauth2 import CacheFileHandler
-from spotipy import SpotifyOAuth
+from spotipy import Spotify, SpotifyOAuth
 import flask
 from flask import Flask, request
 from main import start_twitch_bot, start_discord_hook
@@ -21,14 +21,13 @@ app.static_folder = static_folder
 class Server:
     def __init__(self):
         init_dirs()
-        self.log = Log('server', './data/server.log')
+        self.log = Log('server', file='./data/server.log')
         self.creds = Creds(self.log)
         self.user = self.creds.spotify.username
         self.cache_path = f'./secret/.cache-{self.user}'
-        self.spotify_connected = False
-        self.cache_dict = self.load_cache()
         self.cache_handler = CacheFileHandler(cache_path=self.cache_path)
         self.spot_oath = None
+        self.spotify_connected = self.validate_cache()
         self.settings = Settings()
         self.audio_context = Context()
         self.bot_running = False
@@ -37,32 +36,31 @@ class Server:
             self.start_twitch()
             self.start_discord()
 
-    def load_cache(self) -> None | dict:
+    def validate_cache(self) -> bool:
+        self.log.info('Validating cached Spotify token')
         if not os.path.exists(self.cache_path):
-            with open(self.cache_path, 'w') as f:
-                self.log.info('Cache file does not exist, creating')
-                json.dump({}, f)
-            return None
-        data = None
+            self.log.info('No cached Spotify token found')
+            return False
         with open(self.cache_path, 'r') as f:
-            self.log.info('Loading cache file')
-            data = json.load(f)
-            token = data.get('token')
-            refresh = data.get('refresh')
-            self.spotify_connected = True
+            cache_data = json.load(f)
+        
 
-        if token is None or refresh is None:
-            return None
-
-        return data
+        if cache_data.get('access_token') is None \
+            and cache_data.get('refresh_token') is None:
+            if not self.test_spotify():
+                self.log.error('Cached Spotify token is invalid')
+                with open(self.cache_path, 'w') as f:
+                    json.dump({}, f)
+                return False
+        return True
 
     def redirect(self):
         redirect_uri = request.base_url + 'callback'
-        self.spot_oath = SpotifyOAuth(client_id=self.creds.spotify.client_id,
-                                      client_secret=self.creds.spotify.client_secret,
-                                      redirect_uri=redirect_uri,
-                                      scope=self.creds.spotify.scopes,
-                                      cache_handler=self.cache_handler)
+        # Spotify no longer accepts "localhost" as a redirect host; the loopback
+        # IP literal is required, so rewrite it transparently if the user
+        # browsed to localhost instead of 127.0.0.1.
+        redirect_uri = redirect_uri.replace('://localhost:', '://127.0.0.1:')
+        self.spot_oath = self.spotify_oauth(redirect_uri)
         auth_url = self.spot_oath.get_authorize_url()
         return flask.redirect(auth_url)
 
@@ -72,14 +70,49 @@ class Server:
             self.log.error('Cache dict or spot oath is None')
             return '', 500
 
-        self.log.info('Getting access token')
-        code = self.spot_oath.parse_response_code(request.url)
-        self.spot_oath.get_access_token(code, as_dict=False, check_cache=False)
+        try:
+            self.log.info('Getting access token')
+            code = self.spot_oath.parse_response_code(request.url)
+            self.spot_oath.get_access_token(code, as_dict=False,
+                                            check_cache=False)
+        except Exception as e:
+            self.log.error(f'Failed to get Spotify access token: {e}')
+            return 'Spotify authentication failed, please try again.', 400
+
+        # verify the credentials actually work before confirming the connection
+        # and starting the bots
+        if not self.test_spotify():
+            return ('Connected to Spotify but the credentials could not be '
+                    'verified. Check your Spotify app settings and try '
+                    'again.'), 400
+
         self.spotify_connected = True
         self.log.info('running start bot')
         self.start_twitch()
         self.start_discord()
         return 'Bot is running', 200
+
+    def spotify_oauth(self, redirect_uri: str = 'https://open.spotify.com/'):
+        return SpotifyOAuth(client_id=self.creds.spotify.client_id,
+                            client_secret=self.creds.spotify.client_secret,
+                            redirect_uri=redirect_uri,
+                            scope=self.creds.spotify.scopes,
+                            cache_handler=self.cache_handler)
+
+    def test_spotify(self) -> bool:
+        """Confirm the cached Spotify token works by making a real API call.
+
+        Builds an OAuth manager around the cache handler so it works both after
+        the interactive login and on startup from a cached token; spotipy
+        refreshes an expired access token using the cached refresh token."""
+        try:
+            sp = Spotify(auth_manager=self.spotify_oauth())
+            sp.current_user()
+            self.log.info('Spotify credentials verified')
+            return True
+        except Exception as e:
+            self.log.error(f'Spotify credential check failed: {e}')
+            return False
 
     def start_twitch(self):
         self.log.info('Starting bot')
