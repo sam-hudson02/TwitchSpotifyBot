@@ -1,5 +1,8 @@
 FROM python:3.14-slim
 
+# unbuffered stdout/stderr so logs reach `docker logs` in real time
+ENV PYTHONUNBUFFERED=1
+
 # Bring in the uv binary
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
