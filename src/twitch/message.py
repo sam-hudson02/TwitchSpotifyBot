@@ -23,7 +23,6 @@ class Chatter:
         return self.tags.get('mod') == '1'
 
     async def is_follower(self) -> bool:
-        # TODO: make this work
         return await self.api.is_follower(self.id)
 
     async def is_vip(self):

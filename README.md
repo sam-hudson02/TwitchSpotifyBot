@@ -21,7 +21,7 @@ A full list of commands can be found [here](https://github.com/sam-hudson02/Twit
   - **Local machine:** add `http://127.0.0.1:5000/callback`, and open the bot at `http://127.0.0.1:5000` (use the IP, not `localhost`).
   - **Remote host (e.g. a Raspberry Pi on your LAN):** Spotify requires HTTPS for non-loopback addresses. Either put the bot behind an HTTPS reverse proxy / tunnel (Caddy, Cloudflare Tunnel, Tailscale…) and register that `https://…/callback` URL, or do the one-time Spotify login on your local machine at `http://127.0.0.1:5000` and copy the generated `secret/.cache-<spotify-username>` file over to the host — the bot refreshes the token automatically from then on.
 - A Twitch account for the bot to post as (your own account works fine)
-- Twitch OAuth credentials for that account. Recommended to use [twitchtokengenerator.com](https://twitchtokengenerator.com/): select the **Bot Chat Token** option and authorize, which gives you a **client id**, an **access token** and a **refresh token** with the `chat:read`/`chat:edit` scopes the bot needs. 
+- Twitch OAuth credentials (a client id, an access token and a refresh token) for that account, with the scopes `chat:read`, `chat:edit`, `user:read:chat` and `moderator:read:followers`. Recommended to use [this twitchtokengenerator.com link](https://twitchtokengenerator.com/?scope=chat:read+chat:edit+user:read:chat+moderator:read:followers), which pre-fills the required scopes: click **Custom Scope Token**, then scroll to the bottom and click **Generate Token** to authorize.
 
 ### Optional
 
@@ -50,6 +50,7 @@ DISCORD_LEADERBOARD_WEBHOOK=
 ```
 
 `TWITCH_CHANNEL` is the channel the bot listens in; `TWITCH_BOT_NAME` is the account it speaks as (often the same account). Leave the Discord lines blank if you don't want Discord integration.
+
 
 ## Configuring commands
 
@@ -100,6 +101,8 @@ Anything you leave out falls back to the defaults, so you only need to include t
    ```bash
    docker compose up -d
    ```
+
+5. Mod the bot in Twitch chat (if running the bot as a different account)
 
 ## Running locally
 
