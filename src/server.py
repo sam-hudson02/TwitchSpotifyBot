@@ -33,8 +33,7 @@ class Server:
         self.bot_running = False
         self.loop = asyncio.new_event_loop()
         if self.spotify_connected:
-            self.start_twitch()
-            self.start_discord()
+            self.start_bots()
 
     def validate_cache(self) -> bool:
         self.log.info('Validating cached Spotify token')
@@ -88,8 +87,7 @@ class Server:
 
         self.spotify_connected = True
         self.log.info('running start bot')
-        self.start_twitch()
-        self.start_discord()
+        self.start_bots()
         return 'Bot is running', 200
 
     def spotify_oauth(self, redirect_uri: str = 'https://open.spotify.com/'):
@@ -114,6 +112,13 @@ class Server:
             self.log.error(f'Spotify credential check failed: {e}')
             return False
 
+    def start_bots(self):
+        if self.bot_running:
+            return
+        self.bot_running = True
+        self.start_twitch()
+        self.start_discord()
+
     def start_twitch(self):
         self.log.info('Starting bot')
         self.loop.create_task(start_twitch_bot(self.creds, self.settings,
@@ -129,9 +134,7 @@ class Server:
     def index(self):
         if not self.spotify_connected:
             return self.redirect()
-        if not self.bot_running:
-            self.start_twitch()
-            self.start_discord()
+        self.start_bots()
         return 'Bot is running', 200
 
     def run(self):
