@@ -2,6 +2,7 @@
 set -euo pipefail
 
 IMAGE="${IMAGE:-samhudson02/sbotify}"
+GHCR_IMAGE="${GHCR_IMAGE:-ghcr.io/sam-hudson02/sbotify}"
 VERSION="${1:-$(uv version --short)}"
 PLATFORMS="${PLATFORMS:-linux/amd64,linux/arm64}"
 
@@ -15,10 +16,20 @@ fi
 docker buildx inspect sbotify-builder >/dev/null 2>&1 \
     || docker buildx create --name sbotify-builder --use
 
+tags=(-t "$IMAGE:$VERSION" -t "$IMAGE:latest")
+
+# also push to GitHub Container Registry when logged in (set GHCR=0 to skip)
+if [ "${GHCR:-1}" = "1" ]; then
+    if docker login ghcr.io </dev/null >/dev/null 2>&1; then
+        tags+=(-t "$GHCR_IMAGE:$VERSION" -t "$GHCR_IMAGE:latest")
+    else
+        echo "ghcr.io not authenticated, skipping GHCR (run: docker login ghcr.io)" >&2
+    fi
+fi
+
 docker buildx build \
     --platform "$PLATFORMS" \
-    -t "$IMAGE:$VERSION" \
-    -t "$IMAGE:latest" \
+    "${tags[@]}" \
     --push .
 
 # tag the released commit and push the tag
