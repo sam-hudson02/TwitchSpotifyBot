@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from utils.creds import TwitchCreds
 from utils.db import DB
 from utils.settings import Settings
+from utils.command_config import CommandConfig
 from twitch.router import Router
 from twitch.public_online import OnlineCog
 from twitch.public_offline import OfflineCog
@@ -24,6 +25,7 @@ class Bot:
         self.service.on_message(self.on_message)
         self.channel: str = creds.channel
         self.router: Router = Router(self)
+        self.commands: CommandConfig = CommandConfig()
         self.settings: Settings = settings
         self.prefix: str = prefix
         self.db: DB = db
@@ -35,7 +37,7 @@ class Bot:
 
     async def on_join(self, channel: str) -> None:
         self.log.info(f'Joined channel: {channel}')
-        await self.service.send('Sbotify is now online!')
+        await self.service.send(self.commands.message('GENERAL', 'online'))
 
     async def on_message(self, msg: Message) -> None:
         try:
@@ -61,7 +63,7 @@ class Bot:
 
     async def on_error(self, msg: Message, error: Exception):
         self.log.error(f'Error: {error}')
-        await msg.reply('An error occurred!')
+        await msg.reply(self.commands.message('GENERAL', 'error'))
 
     async def check_live(self):
         while True:

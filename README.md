@@ -51,6 +51,25 @@ DISCORD_LEADERBOARD_WEBHOOK=
 
 `TWITCH_CHANNEL` is the channel the bot listens in; `TWITCH_BOT_NAME` is the account it speaks as (often the same account). Leave the Discord lines blank if you don't want Discord integration.
 
+## Configuring commands
+
+Every command's keyword(s) and response messages are configurable. On first run the bot writes `data/commands.yml` (under the mounted `./data` folder when running in Docker); edit it and restart to apply changes. Each entry looks like:
+
+```yaml
+SONG_REQUEST:
+  keywords: [sr, songrequest]   # chat triggers, used as !sr / !songrequest
+  enabled: true                 # set false to disable the command
+  messages:
+    added: "{song} by {artist} has been added to the queue!"
+    not_found: "Sorry, I could not find that song!"
+```
+
+- `keywords` — one or more aliases (chat prefixes them with `!`).
+- `enabled` — set `false` to turn a command off.
+- `messages` — response templates. `{placeholders}` such as `{song}`, `{artist}`, `{user}`, `{requester}` and `{votes}` are filled in by the bot; unknown placeholders are left as-is.
+
+Anything you leave out falls back to the defaults, so you only need to include the commands and messages you want to change. The full default set is in [`src/utils/default_commands.yml`](src/utils/default_commands.yml).
+
 ## Running with Docker (recommended)
 
 1. Create a deployment directory:

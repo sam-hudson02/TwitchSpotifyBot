@@ -1,0 +1,203 @@
+# Command configuration. Each entry has:
+#   keywords: the chat keyword(s) that trigger the command (used as !keyword)
+#   enabled:  set false to turn the command off
+#   messages: response templates; {placeholders} are filled in by the bot
+# Copy/edit data/commands.yml to customise; unset values fall back to these.
+
+# --- Song request (OnlineCog) ---
+
+SONG_REQUEST:
+  keywords: [sr]
+  enabled: true
+  messages:
+    added: "{song} by {artist} has been added to the queue!"
+    disabled: "This command is currently disabled!"
+    not_live: "This command can only be used while live!"
+    youtube_link: "Please use a youtube link!"
+    banned: "You are banned from requesting songs!"
+    not_found: "Sorry, I could not find that song!"
+    bad_perms: "Only {perm} can use this command at the moment!"
+    already_in_queue: "That song is already in the queue!"
+
+SONG:
+  keywords: [song]
+  enabled: true
+  messages:
+    not_playing: "No song currently playing!"
+    playing_queue: "Currently playing {song} by {artist} as requested by @{requester} !"
+    playing: "Currently playing {song} by {artist}!"
+
+NEXT:
+  keywords: [next]
+  enabled: true
+  messages:
+    empty: "No songs in queue!"
+    next: "Next song is {song} by {artist} as requested by @{requester}!"
+
+REMOVE:
+  keywords: [rm]
+  enabled: true
+  messages:
+    no_requests: "You have no requests in the queue!"
+    removed: "Your last request, {song} by {artist}, has been removed from the queue!"
+
+VETO:
+  keywords: [veto]
+  enabled: true
+  messages:
+    already_voted: "You have already voted to veto the current song!"
+    voted: "{votes} out of {veto_pass} chatters have voted to skip the current song!"
+    vetoed: "{song} by {artist} has been vetoed by chat LUL"
+
+RATE:
+  keywords: [rate]
+  enabled: true
+  messages:
+    already_rated: "You have already rated this song!"
+    own_song: "You can't rate your own song! LUL"
+    rated: "@{user} has rated @{requester}'s song "
+
+# --- Always available (OfflineCog) ---
+
+HELP:
+  keywords: [help]
+  enabled: true
+  messages:
+    help: "A list of commands can be found here: https://github.com/sam-hudson02/TwitchSpotifyBot/blob/main/Commands.md"
+
+SR_STATUS:
+  keywords: [sr-status]
+  enabled: true
+  messages:
+    "on": "Song request are turned on!"
+    on_followers: "Song request are turned on for followers only!"
+    on_subs: "Song request are turned on for subs only!"
+    on_privileged: "Song request are turned on for privileged users only!"
+    on_not_live: "Song request are turned on but won't be taken till {channel} is live."
+    "off": "Song request are turned off."
+
+LEADER:
+  keywords: [leader]
+  enabled: true
+  messages:
+    none: "No one has been rated yet!"
+    leader: "Current leader is @{user} with {rates} rates!"
+
+STATS:
+  keywords: [stats]
+  enabled: true
+  messages:
+    stats: "Your position is {position} with {rates} rates from {requests} requests and {rates_given} rates given!"
+
+# --- Moderator (ModCog) ---
+
+SKIP:
+  keywords: [skip]
+  enabled: true
+  messages:
+    not_live: "Song request are currently turned off. ({channel} not live)"
+    skipping: "Skipping current track!"
+
+BAN:
+  keywords: [ban]
+  enabled: true
+  messages:
+    banned: "@{target} has been banned!"
+
+UNBAN:
+  keywords: [unban]
+  enabled: true
+  messages:
+    unbanned: "@{target} has been unbanned!"
+
+FOLLOWERS_ONLY:
+  keywords: [followers-only]
+  enabled: true
+  messages:
+    set: "Song requests are now open to followers only."
+
+SUBS_ONLY:
+  keywords: [subs-only]
+  enabled: true
+  messages:
+    set: "Song requests are now open to subscribers only."
+
+PRIV_ONLY:
+  keywords: [priv-only]
+  enabled: true
+  messages:
+    set: "Song requests are now open to privileged users only."
+
+ALL:
+  keywords: [all]
+  enabled: true
+  messages:
+    set: "Song requests are now open to everyone."
+
+# --- Admin (AdminCog) ---
+
+SET_VETO:
+  keywords: [set-veto]
+  enabled: true
+  messages:
+    too_low: "Veto pass must be at least 2"
+    set: "Veto pass has been set to {veto_pass}"
+    not_a_number: "Could not find a number in your command"
+
+ADD_MOD:
+  keywords: [sr-mod]
+  enabled: true
+  messages:
+    modded: "@{target} is now a mod! Type !help to see all the available commands!"
+
+REMOVE_MOD:
+  keywords: [sr-unmod]
+  enabled: true
+  messages:
+    unmodded: "@{target} is no longer a mod."
+
+SR_ON:
+  keywords: [sr-on]
+  enabled: true
+  messages:
+    "on": "Song request have been turned on!"
+    already_on_not_live: "Song request are already turned on but won't be taken till {channel} is live."
+    already_on: "Song request are already turned on."
+
+SR_OFF:
+  keywords: [sr-off]
+  enabled: true
+  messages:
+    "off": "Song request have been turned off!"
+    already_off: "Song request are already turned off."
+
+LEADERBOARD_RESET:
+  keywords: [sr-reset]
+  enabled: true
+  messages:
+    reset: "Leaderboard has been reset!"
+
+CLEAR:
+  keywords: [clear]
+  enabled: true
+  messages:
+    cleared: "Queue has been cleared!"
+
+DEV_ON:
+  keywords: [dev-on]
+  enabled: true
+  messages:
+    "on": "Dev mode has been turned on!"
+
+DEV_OFF:
+  keywords: [dev-off]
+  enabled: true
+  messages:
+    "off": "Dev mode has been turned off!"
+
+# --- Bot-wide ---
+
+GENERAL:
+  messages:
+    online: "Sbotify is now online!"
+    error: "An error occurred!"
