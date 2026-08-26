@@ -27,7 +27,7 @@ class ModCog(Cog):
         self.register('ALL', self.all_perms)
 
     async def before_invoke(self, ctx: Context) -> bool:
-        if not ctx.user.mod or not ctx.user.admin:
+        if not (ctx.user.mod or ctx.user.admin):
             raise NotAuthorized('mod')
         return True
 
