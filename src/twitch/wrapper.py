@@ -3,6 +3,7 @@ from utils.creds import TwitchCreds
 from utils.twitch_token import TwitchToken
 from typing import Awaitable, Callable, Optional
 import socket
+import random
 from twitch.message import Message
 import threading as th
 from utils.logger import Log
@@ -12,7 +13,8 @@ import aiohttp
 class Wrapper:
     def __init__(self, creds: TwitchCreds,
                  sock: Optional[socket.socket] = None,
-                 token: Optional[TwitchToken] = None):
+                 token: Optional[TwitchToken] = None,
+                 read_sock: Optional[socket.socket] = None):
         self.token = token or TwitchToken(creds)
         self.api = API(creds, self.token)
         self.log = Log('Socket')
@@ -22,38 +24,53 @@ class Wrapper:
         self._on_offline: Callable[[None], Awaitable[None]] = self.empty
         self.server = 'irc.chat.twitch.tv'
         self.port = 6667
-        self.sock: Optional[socket.socket] = sock
+        # authenticated connection, used to send messages as the bot account
+        self.send_sock: Optional[socket.socket] = sock
+        # anonymous connection, used to read chat. Twitch does not echo a
+        # user's own messages back to their authenticated session, so an
+        # anonymous reader is needed to see messages from the bot's own account.
+        self.read_sock: Optional[socket.socket] = read_sock or sock
 
     async def empty(self, *args, **kwargs):
         pass
 
     async def connect(self, tries: int = 0):
         try:
-            if self.sock is None:
-                self.sock = socket.socket()
-            self.log.info(f"Connecting to {self.server}:{self.port}")
             token = await self.token.get()
-            self.sock.connect((self.server, self.port))
-            self.sock.send('CAP REQ :twitch.tv/membership twitch.tv/tags\n'
-                           .encode("utf-8"))
-            self.sock.send(f"PASS oauth:{token}\n".encode("utf-8"))
-            self.sock.send(f"NICK {self.creds.bot_name}\n".encode("utf-8"))
-            self.sock.send(f"JOIN #{self.creds.channel}\n".encode("utf-8"))
-            resp = self.sock.recv(2048).decode("utf-8")
+            if self.send_sock is None:
+                self.send_sock = socket.socket()
+            if self.read_sock is None:
+                self.read_sock = socket.socket()
+            self.log.info(f"Connecting to {self.server}:{self.port}")
+
+            # authenticated connection: sends messages as the bot account
+            self.send_sock.connect((self.server, self.port))
+            self.send_sock.send('CAP REQ :twitch.tv/membership twitch.tv/tags\n'
+                                .encode("utf-8"))
+            self.send_sock.send(f"PASS oauth:{token}\n".encode("utf-8"))
+            self.send_sock.send(f"NICK {self.creds.bot_name}\n".encode("utf-8"))
+            self.send_sock.send(f"JOIN #{self.creds.channel}\n".encode("utf-8"))
+            resp = self.send_sock.recv(2048).decode("utf-8")
             if 'Login authentication failed' in resp:
                 # token was rejected: refresh it and let the retry loop reconnect
                 self.log.error('Twitch rejected the access token, refreshing')
                 await self.token.get(force=True)
                 raise ConnectionError('Login authentication failed')
+
+            # anonymous connection: reads all chat, including messages sent from
+            # the bot's own account (which Twitch will not echo to send_sock)
+            anon_nick = f"justinfan{random.randint(10000, 99999)}"
+            self.read_sock.connect((self.server, self.port))
+            self.read_sock.send('CAP REQ :twitch.tv/membership twitch.tv/tags\n'
+                                .encode("utf-8"))
+            self.read_sock.send(f"NICK {anon_nick}\n".encode("utf-8"))
+            self.read_sock.send(f"JOIN #{self.creds.channel}\n".encode("utf-8"))
+            self.read_sock.recv(2048)
+
             self.log.info('Socket connected')
             await self._on_join(self.creds.channel)
         except Exception as err:
-            try:
-                if self.sock is not None:
-                    self.sock.close()
-                self.sock = None
-            except Exception as e:
-                self.log.error(f'Error closing socket: {e}')
+            self._close_sockets()
             self.log.error(f"Error connecting to socket: {err}")
             await asyncio.sleep(1.5 ** tries)
             if tries < 5:
@@ -64,12 +81,26 @@ class Wrapper:
                 # exit entire program
                 exit(1)
 
+    def _close_sockets(self):
+        for name in ('send_sock', 'read_sock'):
+            sock = getattr(self, name)
+            if sock is None:
+                continue
+            try:
+                sock.close()
+            except Exception as e:
+                self.log.error(f'Error closing socket: {e}')
+            setattr(self, name, None)
+
     def disconnect(self):
-        if self.sock is None:
-            return
-        self.log.info('Disconnecting socket')
-        self.sock.send(f"PART #{self.creds.channel}\n".encode("utf-8"))
-        self.sock.close()
+        if self.send_sock is not None:
+            self.log.info('Disconnecting socket')
+            try:
+                self.send_sock.send(
+                    f"PART #{self.creds.channel}\n".encode("utf-8"))
+            except Exception as e:
+                self.log.error(f'Error sending PART: {e}')
+        self._close_sockets()
 
     async def cleanup(self):
         self.disconnect()
@@ -78,6 +109,8 @@ class Wrapper:
     async def start(self):
         await self.connect()
         th.Thread(target=self.run_listen).start()
+        # keep the authenticated (send) connection alive by answering its PINGs
+        th.Thread(target=self._keepalive_loop).start()
 
     def run_listen(self):
         loop = asyncio.new_event_loop()
@@ -85,11 +118,25 @@ class Wrapper:
         loop.create_task(self.listen())
         loop.run_forever()
 
+    def _keepalive_loop(self):
+        # the send connection never routes messages (they arrive on read_sock),
+        # but it must still respond to Twitch PINGs or it will be dropped
+        while True:
+            try:
+                if self.send_sock is None:
+                    return
+                resp = self.send_sock.recv(2048).decode("utf-8")
+                if resp.startswith("PING"):
+                    self.send_sock.send("PONG\n".encode("utf-8"))
+            except Exception as e:
+                self.log.error(f'Send socket error: {e}')
+                return
+
     async def send(self, message: str):
-        if self.sock is None:
+        if self.send_sock is None:
             return
-        self.sock.send(f"PRIVMSG #{self.creds.channel} :{message}\n"
-                       .encode("utf-8"))
+        self.send_sock.send(f"PRIVMSG #{self.creds.channel} :{message}\n"
+                            .encode("utf-8"))
 
     def on_join(self, func: Callable[[str], Awaitable[None]]):
         self._on_join = func
@@ -107,11 +154,13 @@ class Wrapper:
         return resp.startswith("@")
 
     async def read(self):
-        if self.sock is None:
+        # routes chat from the anonymous connection, so the bot also sees
+        # messages sent from its own account
+        if self.read_sock is None:
             return
-        resp = self.sock.recv(2048).decode("utf-8")
+        resp = self.read_sock.recv(2048).decode("utf-8")
         if resp.startswith("PING"):
-            self.sock.send("PONG\n".encode("utf-8"))
+            self.read_sock.send("PONG\n".encode("utf-8"))
         elif len(resp) > 0 and self.is_message(resp):
             msg = Message(resp, self)
             await self._on_message(msg)
