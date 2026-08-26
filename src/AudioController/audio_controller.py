@@ -190,7 +190,7 @@ class AudioController:
             next = queue[0]
             await self.db.remove_from_queue(next.id)
             self.log.info(f'Preparing to play {next.name} ' +
-                          f'requested by {next.artist}')
+                          f'requested by {next.requester}')
             self.spot.add_to_queue(next.url)
             spot_queue = self.spot.get_queue()
             playback_id = next.url.split('/')[-1]
