@@ -95,11 +95,11 @@ def time_finder(request: str) -> dict:
 async def is_privileged(chatter: Chatter, user: User):
     if user.mod or user.admin:
         return True
-    elif chatter.is_vip:
+    elif await chatter.is_vip():
         return True
-    elif chatter.is_mod:
+    elif await chatter.is_mod():
         return True
-    elif chatter.is_subscriber:
+    elif await chatter.is_subscriber():
         return True
     else:
         return False
@@ -110,7 +110,7 @@ async def check_permission(settings: Settings, chatter: Chatter, user: User):
     if chatter.is_broadcaster:
         return
     if perm is Perms.SUBS:
-        if not chatter.is_subscriber:
+        if not await chatter.is_subscriber():
             raise BadPerms('subscriber')
     if perm is Perms.FOLLOWERS:
         if not await chatter.is_follower():
