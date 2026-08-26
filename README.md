@@ -93,7 +93,7 @@ Anything you leave out falls back to the defaults, so you only need to include t
          - "5000:5000"
        volumes:
          - ./secret:/Sbotify/secret   # conf.env and the cached Spotify token
-         - ./data:/Sbotify/data       # sqlite database, logs and settings.json
+         - ./data:/Sbotify/data       # sqlite database, logs and settings.yml
    ```
 
 4. Start it, then visit `http://<host>:5000` and log in to Spotify. Once authenticated the bot connects to Twitch and starts taking requests.

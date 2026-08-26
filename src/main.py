@@ -42,7 +42,7 @@ async def start_discord_hook(creds: Creds, settings: Settings,
     disc_creds = creds.discord
     channel = creds.twitch.channel
 
-    disc_log = Log('Discord', settings.log)
+    disc_log = Log('Discord')
 
     if not (disc_creds.queue_webhook or disc_creds.leaderboard_webhook):
         disc_log.error('No Discord Webhooks Provided')
