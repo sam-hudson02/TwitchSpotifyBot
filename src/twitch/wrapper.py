@@ -222,8 +222,11 @@ class API:
             return None
 
     async def is_follower(self, user_id: str) -> bool:
-        params = {'from_id': user_id, 'to_id': self.channel_id}
-        resp = await self.do_call('users/follows', params)
+        channel_id = await self.channel_id()
+        params = {'broadcaster_id': channel_id, 'user_id': user_id}
+        # needs the moderator:read:followers scope and the bot to be a
+        # moderator of the channel
+        resp = await self.do_call('channels/followers', params)
         if resp is None:
             return False
         return len(resp['data']) > 0
