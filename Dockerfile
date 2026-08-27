@@ -1,31 +1,46 @@
-FROM python:3.14-slim
+FROM python:3.14-slim AS builder
 
-# unbuffered stdout/stderr so logs reach `docker logs` in real time
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONUNBUFFERED=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
 
-# Bring in the uv binary
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Node.js is required by prisma-client-py to fetch/run the Prisma CLI
-# (used by both `prisma generate` at build time and `prisma migrate deploy`
-# at runtime).
+# Node.js is only needed at build time, to run the Prisma CLI (`generate`)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends nodejs npm \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /Sbotify
 
-# Install dependencies first (cached unless the lockfile changes)
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
-# App source + Prisma schema/migrations
-COPY src src
 COPY prisma prisma
-
-# Generate the Prisma client into the venv
+COPY src src
 RUN uv run prisma generate
 
-RUN mkdir -p data secret
 
-CMD ["sh", "-c", "uv run prisma migrate deploy && uv run python src/server.py"]
+FROM python:3.14-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PATH="/Sbotify/.venv/bin:$PATH"
+
+# libatomic1 is needed by the Prisma query engine on some architectures
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libatomic1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /Sbotify
+
+# the venv (with the generated Prisma client) and the query engine binary; no
+# Node.js, migrations are applied at runtime by src/migrate.py
+COPY --from=builder /Sbotify/.venv /Sbotify/.venv
+COPY --from=builder /root/.cache/prisma-python /root/.cache/prisma-python
+COPY src src
+COPY prisma prisma
+COPY entrypoint.sh /entrypoint.sh
+
+RUN mkdir -p data secret && chmod +x /entrypoint.sh
+
+CMD ["/entrypoint.sh"]

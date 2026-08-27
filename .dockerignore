@@ -1,0 +1,8 @@
+.git
+.venv
+__pycache__
+*.pyc
+data
+secret
+PR.md
+todo.md
