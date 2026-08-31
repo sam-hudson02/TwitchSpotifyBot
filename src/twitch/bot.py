@@ -57,6 +57,15 @@ class Bot:
         await self.service.start()
         await self.start_routines()
 
+    async def stop(self):
+        self.log.info('Stopping service')
+        await self.service.cleanup()
+        self.log.info('Stopping routines')
+        if hasattr(self, 'check_live_routine'):
+            self.check_live_routine.cancel()
+        if hasattr(self, 'ac_update_routine'):
+            self.ac_update_routine.cancel()
+
     async def load_cogs(self):
         for cog in self.cogs:
             await cog.load()
