@@ -11,6 +11,9 @@ class DB:
     async def connect(self):
         await self.client.connect()
 
+    async def disconnect(self):
+        await self.client.disconnect()
+
     async def reset_all_user_stats(self) -> None:
         await self.client.user.update_many(
             where={},
