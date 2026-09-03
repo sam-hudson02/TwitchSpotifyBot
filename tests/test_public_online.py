@@ -57,7 +57,7 @@ class TestPublicOnline(unittest.IsolatedAsyncioTestCase):
         next = await self.db.get_next_song()
         if next is None:
             self.fail('song not in db')
-        self.assertEqual(next.name, 'test')
+        self.assertEqual(next.songName, 'test')
         self.assertEqual(next.requester, self.channel)
 
         # shouldn't be able to add the same song twice
@@ -84,7 +84,7 @@ class TestPublicOnline(unittest.IsolatedAsyncioTestCase):
         next = await self.db.get_next_song()
         if next is None:
             self.fail('song not in db')
-        self.assertEqual(next.name, 'test')
+        self.assertEqual(next.songName, 'test')
         self.assertEqual(next.requester, self.channel)
 
     async def dbRefresh(self):

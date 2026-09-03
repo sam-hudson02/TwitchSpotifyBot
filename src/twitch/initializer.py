@@ -16,9 +16,11 @@ class TwitchInitial:
         self.loop: asyncio.AbstractEventLoop = loop
         self.service = Wrapper(self.creds)
         self.db = DB()
-        self.ac: AudioController = AudioController(self.db, self.spotify, self.ctx,  self.log)
         self.spotify: Spotify = spotify
-        self.bot: TwitchBot = TwitchBot(self.service, self.db, self.settings, self.ac, self.creds)
+        self.ac: AudioController = AudioController(self.db, self.spotify,
+                                                  self.ctx, self.log)
+        self.bot: TwitchBot = TwitchBot(self.service, self.db, self.settings,
+                                        self.ac, self.creds)
 
     async def start_bot(self) -> bool:
         self.log.info('Starting Twitch Bot')

@@ -47,7 +47,7 @@ class DiscordHook:
         header = ['Position', 'Track', 'Artist/s', 'Requester', 'id']
         for req in queue:
             body.append([req.position,
-                         req.name,
+                         req.songName,
                          req.artist,
                          req.requester,
                          req.id])

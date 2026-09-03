@@ -18,14 +18,18 @@ model User {
   requests   Int     @default(0)
   rates      Int     @default(0)
   ratesGiven Int     @default(0)
+  queue      Queue[]
 }
 
 model Queue {
-  id        Int      @id @default(autoincrement())
-  createdAt DateTime @default(now())
-  name      String
-  artist    String
-  requester String
-  url       String
-  position  Int
+  id            Int      @id @default(autoincrement())
+  createdAt     DateTime @default(now())
+  songName      String
+  artist        String
+  requester     String
+  requesterUser User     @relation(fields: [requester], references: [username])
+  url           String
+  position      Float
+
+  @@index([position])
 }

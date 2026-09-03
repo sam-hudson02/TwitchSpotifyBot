@@ -101,7 +101,7 @@ class DB:
     async def check_if_in_queue(self, song: SongReq) -> bool:
         return await self.client.queue.find_first(
             where={
-                'name': song.name,
+                'songName': song.name,
                 'artist': song.artist,
             },
         ) is not None
@@ -110,17 +110,8 @@ class DB:
         if await self.check_if_in_queue(song):
             raise TrackAlreadyInQueue(track=song.name, artist=song.artist)
 
-        position = await self.client.queue.count(where={}) + 1
-        await self.client.queue.create(
-            data={
-                "name": song.name,
-                "artist": song.artist,
-                "url": song.url,
-                "requester": song.requester,
-                "position": position,
-            }
-        )
-
+        # the requester must exist before the queue row: the Queue.requester
+        # foreign key references User.username
         await self.client.user.upsert(
             where={"username": song.requester},
             data={
@@ -133,6 +124,18 @@ class DB:
                     },
                 },
             },
+        )
+
+        last = await self.client.queue.find_first(order={"position": "desc"})
+        position = last.position + 1 if last is not None else 1
+        await self.client.queue.create(
+            data={
+                "songName": song.name,
+                "artist": song.artist,
+                "url": song.url,
+                "requester": song.requester,
+                "position": position,
+            }
         )
 
     async def get_queue(self) -> list[Queue]:
@@ -174,8 +177,9 @@ class DB:
         )
 
     async def delete_all(self) -> None:
-        await self.client.user.delete_many(where={})
+        # queue rows reference users, so clear them before the users they point to
         await self.client.queue.delete_many(where={})
+        await self.client.user.delete_many(where={})
 
     async def mod_user(self, username: str) -> None:
         await self.client.user.upsert(

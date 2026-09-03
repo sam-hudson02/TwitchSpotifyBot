@@ -172,7 +172,7 @@ class AudioController:
         self.context.requester = song_req.requester
         self.context.playing_queue = True
         self.log.info(f'Set requester to {song_req.requester} for '
-                      f'{song_req.name}')
+                      f'{song_req.songName}')
 
     def recheck_queue(self):
         if self.next is None:
@@ -198,7 +198,7 @@ class AudioController:
                 return
             next = queue[0]
             await self.db.remove_from_queue(next.id)
-            self.log.info(f'Preparing to play {next.name} ' +
+            self.log.info(f'Preparing to play {next.songName} ' +
                           f'requested by {next.requester}')
             self.spot.add_to_queue(next.url)
             spot_queue = self.spot.get_queue()
