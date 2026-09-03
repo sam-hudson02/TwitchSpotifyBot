@@ -145,6 +145,23 @@ class AppState:
         self.services.settings.set_active(active)
         self.services.context.active = active
 
+    # users --------------------------------------------------------------
+
+    async def set_user_flags(self, username: str, *, ban: bool | None = None,
+                             dj: bool | None = None):
+        """Ensure the user exists, then apply whichever role flags are given,
+        and return the updated user."""
+        await self.services.db.get_user(username)
+        if ban is True:
+            await self.services.db.ban_user(username)
+        elif ban is False:
+            await self.services.db.unban_user(username)
+        if dj is True:
+            await self.services.db.dj_user(username)
+        elif dj is False:
+            await self.services.db.undj_user(username)
+        return await self.services.db.get_user(username)
+
     # playback -----------------------------------------------------------
 
     def now_playing(self) -> dict:

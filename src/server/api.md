@@ -324,6 +324,36 @@ type LeaderboardEntry = {
 
 ---
 
+## Users
+
+Every route here requires the bearer token, including the `GET`. Unlike the
+public queue and leaderboard, this exposes ban and role flags, so it is treated
+as admin data. Each returns the updated (or listed) user.
+
+```typescript
+type User = {
+  username: string;
+  ban: boolean;
+  dj: boolean;
+  admin: boolean;
+  requests: number;
+  rates: number;
+};
+```
+
+### GET /users
+
+Lists all known users with their roles and ban state. `200 User[]`.
+
+### PUT /users/{username}/ban and /unban
+
+Bans or unbans a user (a banned user cannot request songs). The user row is
+created first if it does not exist yet. `200 User`.
+
+### PUT /users/{username}/dj and /undj
+
+Grants or revokes the dj role (used by the "DJs only" request mode). `200 User`.
+
 ## WebSocket for live queue editing
 
 ### WS /ws/queue

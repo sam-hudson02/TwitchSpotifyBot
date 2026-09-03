@@ -9,7 +9,8 @@ from server.state import AppState
 from utils.logger import Log
 from utils.errors import SettingsError
 from mocks.mock_services import (mock_services, mock_creds, MockQueueDB,
-                                 queue_row, MockTwitchBot)
+                                 queue_row, MockTwitchBot, MockUserDB,
+                                 user_row)
 
 AUTH = {'Authorization': 'Bearer secret'}
 
@@ -105,6 +106,47 @@ class TestRoutes(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertFalse(r.json()['active'])
         self.assertFalse(self.state.services.context.active)
+
+
+class TestUserRoutes(unittest.TestCase):
+    def setUp(self):
+        self.db = MockUserDB([user_row('alice'),
+                              user_row('bob', ban=True)])
+        services = mock_services(creds=mock_creds(server_token='secret'),
+                                 db=self.db)
+        services.settings = FakeSettings()
+        services.context = SimpleNamespace(active=True)
+        self.state = AppState(log=Log('test'), services=services,
+                              twitch_factory=MockTwitchBot,
+                              discord_factory=MockTwitchBot)
+        A.app.dependency_overrides[get_state] = lambda: self.state
+        self.client = TestClient(A.app)
+
+    def tearDown(self):
+        A.app.dependency_overrides.clear()
+
+    def test_list_users_requires_auth(self):
+        self.assertEqual(self.client.get('/users').status_code, 401)
+
+    def test_list_users(self):
+        r = self.client.get('/users', headers=AUTH)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual({u['username'] for u in r.json()}, {'alice', 'bob'})
+
+    def test_ban_and_unban(self):
+        self.assertTrue(self.client.put('/users/alice/ban',
+                                        headers=AUTH).json()['ban'])
+        self.assertFalse(self.client.put('/users/bob/unban',
+                                         headers=AUTH).json()['ban'])
+
+    def test_make_dj_creates_missing_user(self):
+        r = self.client.put('/users/carol/dj', headers=AUTH)
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.json()['dj'])
+        self.assertEqual(r.json()['username'], 'carol')
+
+    def test_mutation_requires_auth(self):
+        self.assertEqual(self.client.put('/users/alice/ban').status_code, 401)
 
 
 if __name__ == '__main__':

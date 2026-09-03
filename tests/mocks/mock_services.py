@@ -96,6 +96,37 @@ class MockQueueDB(MockDB):
         self.rows = []
 
 
+def user_row(username, ban=False, dj=False, admin=False, requests=0, rates=0):
+    return SimpleNamespace(username=username, ban=ban, dj=dj, admin=admin,
+                           requests=requests, rates=rates, ratesGiven=0)
+
+
+class MockUserDB(MockDB):
+    def __init__(self, users=None):
+        super().__init__()
+        self.users = {u.username: u for u in (users or [])}
+
+    async def get_user(self, username, admin=False, dj=False):
+        if username not in self.users:
+            self.users[username] = user_row(username, admin=admin, dj=dj)
+        return self.users[username]
+
+    async def get_all_users(self):
+        return list(self.users.values())
+
+    async def ban_user(self, username):
+        (await self.get_user(username)).ban = True
+
+    async def unban_user(self, username):
+        (await self.get_user(username)).ban = False
+
+    async def dj_user(self, username):
+        (await self.get_user(username)).dj = True
+
+    async def undj_user(self, username):
+        (await self.get_user(username)).dj = False
+
+
 def mock_creds(channel='chan', bot_name='bot', queue_webhook='http://queue',
                leaderboard_webhook=None, server_token='token'):
     return SimpleNamespace(

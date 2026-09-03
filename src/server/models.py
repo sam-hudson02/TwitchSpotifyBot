@@ -89,3 +89,12 @@ class SettingsUpdate(BaseModel):
 
 class ActiveUpdate(BaseModel):
     active: bool
+
+
+class UserModel(BaseModel):
+    username: str
+    ban: bool
+    dj: bool
+    admin: bool
+    requests: int
+    rates: int
