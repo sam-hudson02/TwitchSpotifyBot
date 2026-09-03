@@ -96,3 +96,9 @@ class Bot(TwitchInterface):
         loop = asyncio.get_running_loop()
         self.check_live_routine = loop.create_task(self.check_live())
         self.ac_update_routine = loop.create_task(self.ac.update())
+
+    async def skip(self):
+        await self.ac.play_next(skipped=True)
+
+    async def add_song(self, query: str, requester: str):
+        return await self.ac.add_to_queue(query, requester)

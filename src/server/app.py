@@ -5,7 +5,8 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from server.state import AppState
-from server.routes import spotify, twitch, discord, queue, leaderboard, ws
+from server.routes import (spotify, twitch, discord, queue, leaderboard,
+                           playback, ws)
 
 
 @asynccontextmanager
@@ -24,6 +25,7 @@ app.include_router(twitch.router)
 app.include_router(discord.router)
 app.include_router(queue.router)
 app.include_router(leaderboard.router)
+app.include_router(playback.router)
 app.include_router(ws.router)
 
 static_folder = Path(__file__).resolve().parent.parent / 'static'

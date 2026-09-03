@@ -41,3 +41,23 @@ class ControlResponse(BaseModel):
     service: str
     running: bool
     message: str
+
+
+class NowPlaying(BaseModel):
+    track: str | None = None
+    artist: str | None = None
+    requester: str | None = None
+    album_art: str | None = None
+    progress: int | None = None
+    duration: int | None = None
+    paused: bool = True
+    playing_queue: bool = False
+    live: bool = False
+
+
+class QueueAdd(BaseModel):
+    query: str
+
+
+class QueueMove(BaseModel):
+    after: int | None = None

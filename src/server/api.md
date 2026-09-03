@@ -137,6 +137,51 @@ Stops the Discord hook. Always `200 ControlResponse` (`running: false`).
 
 ---
 
+## Playback
+
+### GET /now-playing
+
+The bot's current playback context. The Twitch bot's update loop keeps this
+fresh while it runs; the values are last-known when it is stopped.
+
+```json
+{
+  "track": "song title",
+  "artist": "artist name",
+  "requester": "username",
+  "album_art": "https://...",
+  "progress": 42000,
+  "duration": 210000,
+  "paused": false,
+  "playing_queue": true,
+  "live": true
+}
+```
+
+```typescript
+type NowPlaying = {
+  track: string | null;
+  artist: string | null;
+  requester: string | null;   // null for playlist songs or before it resolves
+  album_art: string | null;
+  progress: number | null;    // milliseconds
+  duration: number | null;    // milliseconds
+  paused: boolean;
+  playing_queue: boolean;     // playing a requested song rather than the playlist
+  live: boolean;
+};
+```
+
+### POST /skip
+
+Skips the current song, playing the next queued one if there is one. Goes
+through the bot's audio controller, so the Twitch bot must be running.
+
+- `200 ControlResponse` (`service: "playback"`, `message: "skipped"`).
+- `409` if the Twitch bot is not running.
+
+---
+
 ## Data
 
 ### GET /queue
@@ -166,6 +211,40 @@ type QueueItem = {
   url: string;
 };
 ```
+
+The three mutations below are the REST counterpart of the WebSocket editor.
+Each is protected, broadcasts the new queue to any WebSocket clients, and
+returns the updated queue as `QueueItem[]`.
+
+### POST /queue
+
+Adds a song by search term or Spotify link, credited to the broadcaster. Goes
+through the bot's audio controller, so the Twitch bot must be running. Body:
+
+```json
+{ "query": "never gonna give you up" }
+```
+
+- `200 QueueItem[]` (the new queue).
+- `409` if the Twitch bot is not running, or the song is already queued.
+- `404` if no matching song was found.
+- `400` for a YouTube link or any non-Spotify link.
+
+### PUT /queue/{id}
+
+Moves a queue entry, using the same fractional-position rule as the WebSocket
+`move`. Body `{ "after": <id> | null }`; `after: null` moves it to the front.
+
+- `200 QueueItem[]`.
+- `404` if the entry (or the `after` target) does not exist.
+
+### DELETE /queue/{id}
+
+Removes one entry. `200 QueueItem[]`.
+
+### DELETE /queue
+
+Clears the queue. `200 QueueItem[]` (empty).
 
 ### GET /leaderboard
 

@@ -21,6 +21,8 @@ class MockTwitchBot:
     def __init__(self, services=None, start_ok=True):
         self.started = False
         self.stopped = False
+        self.skipped = False
+        self.added = None
         self._start_ok = start_ok
         self.context = SimpleNamespace(live=True, active=True)
 
@@ -31,6 +33,13 @@ class MockTwitchBot:
 
     async def stop(self):
         self.stopped = True
+
+    async def skip(self):
+        self.skipped = True
+
+    async def add_song(self, query, requester):
+        self.added = (query, requester)
+        return SimpleNamespace(track=query, artist='artist', link='http://track')
 
 
 class MockDiscordBot:

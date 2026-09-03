@@ -125,6 +125,14 @@ class TwitchInterface(ABC):
     async def start_routines(self) -> None:
         ...
 
+    @abstractmethod
+    async def skip(self) -> None:
+        """Skip the current song, playing the next queued one if any."""
+
+    @abstractmethod
+    async def add_song(self, query: str, requester: str) -> 'TrackInfo':
+        """Search for and add a song to the queue on behalf of a requester."""
+
 
 class DiscordInterface(ABC):
     """The Discord webhook bot."""

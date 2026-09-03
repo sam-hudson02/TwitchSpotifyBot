@@ -135,6 +135,27 @@ class AppState:
         self.discord = None
         return True, 'stopped'
 
+    # playback -----------------------------------------------------------
+
+    def now_playing(self) -> dict:
+        """The bot's current playback context (kept fresh by the update loop
+        while the Twitch bot runs); values are last-known when it is stopped."""
+        return self.services.context.get_context()
+
+    async def skip(self) -> None:
+        """Skip the current song. Requires the Twitch bot (it owns the
+        queue-aware audio controller); callers guard `twitch_running`."""
+        await self.twitch.skip()
+        await self.queue_socket.broadcast_queue()
+
+    async def queue_add(self, query: str):
+        """Add a song to the queue as the broadcaster. Requires the Twitch bot;
+        callers guard `twitch_running`."""
+        requester = self.services.creds.twitch.channel
+        info = await self.twitch.add_song(query, requester)
+        await self.queue_socket.broadcast_queue()
+        return info
+
     # queue --------------------------------------------------------------
 
     async def queue_snapshot(self) -> list[dict]:

@@ -138,6 +138,28 @@ class TestAppState(unittest.IsolatedAsyncioTestCase):
         await state.queue_clear()
         self.assertEqual(await self._queue_ids(state), [])
 
+    async def test_skip_delegates_to_twitch(self):
+        db = MockQueueDB([queue_row(10, 1)])
+        state, _ = build_state(db=db)
+        state.twitch = MockTwitchBot()
+        await state.skip()
+        self.assertTrue(state.twitch.skipped)
+
+    async def test_queue_add_uses_broadcaster_as_requester(self):
+        db = MockQueueDB([])
+        state, _ = build_state(db=db, creds=mock_creds(channel='streamer'))
+        state.twitch = MockTwitchBot()
+        info = await state.queue_add('a song')
+        self.assertEqual(state.twitch.added, ('a song', 'streamer'))
+        self.assertEqual(info.track, 'a song')
+
+    async def test_now_playing_returns_context(self):
+        from types import SimpleNamespace
+        state, _ = build_state()
+        snapshot = {'track': 'song', 'artist': 'artist', 'requester': 'user'}
+        state.services.context = SimpleNamespace(get_context=lambda: snapshot)
+        self.assertEqual(state.now_playing(), snapshot)
+
     async def test_shutdown_stops_services_and_disconnects_db(self):
         state, db = build_state()
         await state.startup()
