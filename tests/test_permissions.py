@@ -27,8 +27,8 @@ class FakeChatter:
 
 
 class FakeUser:
-    def __init__(self, mod=False, admin=False):
-        self.mod = mod
+    def __init__(self, dj=False, admin=False):
+        self.dj = dj
         self.admin = admin
 
 
@@ -67,11 +67,24 @@ class TestCheckPermission(unittest.IsolatedAsyncioTestCase):
     async def test_privileged_allows_vip(self):
         await self.check(Perms.PRIVILEGED, FakeChatter(vip=True), FakeUser())
 
-    async def test_privileged_allows_db_mod(self):
-        await self.check(Perms.PRIVILEGED, FakeChatter(), FakeUser(mod=True))
+    async def test_privileged_allows_db_dj(self):
+        await self.check(Perms.PRIVILEGED, FakeChatter(), FakeUser(dj=True))
 
     async def test_all_allows_everyone(self):
         await self.check(Perms.ALL, FakeChatter(), FakeUser())
+
+    async def test_mod_bypasses_restricted_mode(self):
+        await self.check(Perms.SUBS, FakeChatter(mod=True), FakeUser())
+
+    async def test_djs_only_blocks_non_dj(self):
+        with self.assertRaises(BadPerms):
+            await self.check(Perms.DJS, FakeChatter(), FakeUser())
+
+    async def test_djs_only_allows_dj(self):
+        await self.check(Perms.DJS, FakeChatter(), FakeUser(dj=True))
+
+    async def test_djs_only_allows_mod(self):
+        await self.check(Perms.DJS, FakeChatter(mod=True), FakeUser())
 
 
 class TestIsPrivileged(unittest.IsolatedAsyncioTestCase):

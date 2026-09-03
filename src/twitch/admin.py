@@ -1,5 +1,6 @@
 from utils.errors import NotAuthorized
 from utils import target_finder, Settings, DB
+from utils.twitch_utils import is_moderator
 from twitch.cog import Cog
 from twitch.router import Context
 from typing import TYPE_CHECKING
@@ -17,14 +18,14 @@ class AdminCog(Cog):
         self.commands = bot.commands
 
     async def before_invoke(self, ctx: Context) -> bool:
-        if not ctx.user.mod:
+        if not await is_moderator(ctx.chatter, ctx.user):
             raise NotAuthorized(clearance_required='mod')
         return True
 
     async def load(self):
         self.register('SET_VETO', self.set_veto_pass)
-        self.register('ADD_MOD', self.add_mod)
-        self.register('REMOVE_MOD', self.remove_mod)
+        self.register('ADD_DJ', self.add_dj)
+        self.register('REMOVE_DJ', self.remove_dj)
         self.register('SR_ON', self.sp_on)
         self.register('SR_OFF', self.sp_off)
         self.register('LEADERBOARD_RESET', self.leaderboard_reset)
@@ -51,18 +52,18 @@ class AdminCog(Cog):
     def set_live(self, live: bool):
         self.ac.context.live = live
 
-    async def add_mod(self, ctx: Context):
+    async def add_dj(self, ctx: Context):
         target = target_finder(ctx.content)
 
-        await self.db.mod_user(target)
-        await ctx.reply(self.commands.message('ADD_MOD', 'modded',
+        await self.db.dj_user(target)
+        await ctx.reply(self.commands.message('ADD_DJ', 'djed',
                                               target=target))
 
-    async def remove_mod(self, ctx: Context):
+    async def remove_dj(self, ctx: Context):
         target = target_finder(ctx.content)
 
-        await self.db.unmod_user(target)
-        await ctx.reply(self.commands.message('REMOVE_MOD', 'unmodded',
+        await self.db.undj_user(target)
+        await ctx.reply(self.commands.message('REMOVE_DJ', 'undjed',
                                               target=target))
 
     async def sp_on(self, ctx: Context):
@@ -91,9 +92,13 @@ class AdminCog(Cog):
         await ctx.reply(self.commands.message('CLEAR', 'cleared'))
 
     async def dev_on(self, ctx: Context):
+        if not ctx.user.admin:
+            raise NotAuthorized(clearance_required='admin')
         self.settings.set_dev_mode(True)
         await ctx.reply(self.commands.message('DEV_ON', 'on'))
 
     async def dev_off(self, ctx: Context):
+        if not ctx.user.admin:
+            raise NotAuthorized(clearance_required='admin')
         self.settings.set_dev_mode(False)
         await ctx.reply(self.commands.message('DEV_OFF', 'off'))

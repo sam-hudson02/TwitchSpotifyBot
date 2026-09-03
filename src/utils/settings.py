@@ -21,6 +21,7 @@ class Perms(Enum):
     SUBS = 'subs'
     FOLLOWERS = 'followers'
     PRIVILEGED = 'privileged'
+    DJS = 'djs'
 
 
 class Settings:

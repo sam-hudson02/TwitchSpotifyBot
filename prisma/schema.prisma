@@ -13,7 +13,7 @@ datasource db {
 model User {
   username   String  @unique
   ban        Boolean @default(false)
-  mod        Boolean @default(false)
+  dj         Boolean @default(false)
   admin      Boolean @default(false)
   requests   Int     @default(0)
   rates      Int     @default(0)

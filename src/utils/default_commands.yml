@@ -128,6 +128,12 @@ PRIV_ONLY:
   messages:
     set: "Song requests are now open to privileged users only."
 
+DJS_ONLY:
+  keywords: [djs-only]
+  enabled: true
+  messages:
+    set: "Song requests are now open to DJs only."
+
 ALL:
   keywords: [all]
   enabled: true
@@ -144,17 +150,17 @@ SET_VETO:
     set: "Veto pass has been set to {veto_pass}"
     not_a_number: "Could not find a number in your command"
 
-ADD_MOD:
-  keywords: [sr-mod]
+ADD_DJ:
+  keywords: [sr-dj]
   enabled: true
   messages:
-    modded: "@{target} is now a mod! Type !help to see all the available commands!"
+    djed: "@{target} is now a DJ! Type !help to see all the available commands!"
 
-REMOVE_MOD:
-  keywords: [sr-unmod]
+REMOVE_DJ:
+  keywords: [sr-undj]
   enabled: true
   messages:
-    unmodded: "@{target} is no longer a mod."
+    undjed: "@{target} is no longer a DJ."
 
 SR_ON:
   keywords: [sr-on]

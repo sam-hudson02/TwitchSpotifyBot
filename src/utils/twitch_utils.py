@@ -92,8 +92,12 @@ def time_finder(request: str) -> dict:
     return {'time': time, 'unit': unit}
 
 
+async def is_moderator(chatter: Chatter, user: User) -> bool:
+    return chatter.is_broadcaster or user.admin or await chatter.is_mod()
+
+
 async def is_privileged(chatter: Chatter, user: User):
-    if user.mod or user.admin:
+    if user.dj or user.admin:
         return True
     elif await chatter.is_vip():
         return True
@@ -107,7 +111,8 @@ async def is_privileged(chatter: Chatter, user: User):
 
 async def check_permission(settings: Settings, chatter: Chatter, user: User):
     perm: Perms = settings.permission
-    if chatter.is_broadcaster:
+    # moderators can always request, whatever the current mode
+    if await is_moderator(chatter, user):
         return
     if perm is Perms.SUBS:
         if not await chatter.is_subscriber():
@@ -118,3 +123,6 @@ async def check_permission(settings: Settings, chatter: Chatter, user: User):
     if perm is Perms.PRIVILEGED:
         if not await is_privileged(chatter, user):
             raise BadPerms('mod, subscriber or vip')
+    if perm is Perms.DJS:
+        if not user.dj:
+            raise BadPerms('dj')

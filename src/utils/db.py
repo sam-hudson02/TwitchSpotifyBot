@@ -24,13 +24,13 @@ class DB:
             },
         )
 
-    async def get_user(self, username, admin=False, mod=False) -> User:
+    async def get_user(self, username, admin=False, dj=False) -> User:
         user = await self.client.user.find_unique(where={"username": username})
         if user is None:
             user = await self.client.user.create(data={
                 "username": username,
                 "admin": admin,
-                "mod": mod,
+                "dj": dj,
             })
         return user
 
@@ -187,16 +187,16 @@ class DB:
         await self.client.queue.delete_many(where={})
         await self.client.user.delete_many(where={})
 
-    async def mod_user(self, username: str) -> None:
+    async def dj_user(self, username: str) -> None:
         await self.client.user.upsert(
             where={"username": username},
             data={
                 'create': {
                     "username": username,
-                    "mod": True,
+                    "dj": True,
                 },
                 'update': {
-                    "mod": True,
+                    "dj": True,
                 }
             },
         )
@@ -208,19 +208,19 @@ class DB:
                 'create': {
                     "username": username,
                     "admin": True,
-                    "mod": True,
+                    "dj": True,
                 },
                 'update': {
                     "admin": True,
-                    "mod": True,
+                    "dj": True,
                 }
             },
         )
 
-    async def unmod_user(self, username: str) -> None:
+    async def undj_user(self, username: str) -> None:
         await self.client.user.update(
             where={"username": username},
             data={
-                "mod": False,
+                "dj": False,
             },
         )
