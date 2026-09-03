@@ -2,10 +2,10 @@ from prisma.models import Queue
 from AudioController.track_context import TrackContext
 from AudioController.track_info import TrackInfo
 from utils.errors import TrackNotFound, YoutubeLink, UnsupportedLink
-from AudioController.spotify_api import Spotify
 import time
 from utils.async_timer import Timer
 from utils import Log, DB, SongReq
+from services.interfaces import SpotifyInterface
 from urllib.parse import urlparse
 import asyncio
 
@@ -76,7 +76,8 @@ class Context:
 
 
 class AudioController:
-    def __init__(self, db: DB, spot: Spotify, ctx: Context, log: Log):
+    def __init__(self, db: DB, spot: SpotifyInterface, ctx: Context,
+                 log: Log):
         self.db = db
         self.spot = spot
         self.log = log

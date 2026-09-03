@@ -1,39 +1,60 @@
 import asyncio
+import socket as socket_module
+from typing import TYPE_CHECKING, Optional
+
 from AudioController.audio_controller import AudioController
 from twitch.wrapper import Message, Wrapper
-from typing import TYPE_CHECKING
-from utils.creds import TwitchCreds
-from utils.db import DB
-from utils.settings import Settings
-from utils.command_config import CommandConfig
 from twitch.router import Router
 from twitch.public_online import OnlineCog
 from twitch.public_offline import OfflineCog
 from twitch.mod import ModCog
 from twitch.admin import AdminCog
+from utils.command_config import CommandConfig
 from utils.logger import Log
+from services import Services, TwitchInterface
 if TYPE_CHECKING:
     from twitch.cog import Cog
 
 
-class Bot:
-    def __init__(self, service: Wrapper, db: DB, settings: Settings,
-                 ac: AudioController, creds: TwitchCreds, prefix: str = '!'):
+class Bot(TwitchInterface):
+    def __init__(self, services: Services,
+                 socket: Optional[socket_module.socket] = None,
+                 prefix: str = '!'):
         self.log = Log('Twitch')
-        self.service: Wrapper = service
+        self.creds = services.creds.twitch
+        self.channel: str = self.creds.channel
+        self.settings = services.settings
+        self.db = services.db
+        self.context = services.context
+        self.service: Wrapper = Wrapper(self.creds, socket)
         self.service.on_join(self.on_join)
         self.service.on_message(self.on_message)
-        self.channel: str = creds.channel
         self.router: Router = Router(self)
         self.commands: CommandConfig = CommandConfig()
-        self.settings: Settings = settings
         self.prefix: str = prefix
-        self.db: DB = db
-        self.ac: AudioController = ac
+        self.ac: AudioController = AudioController(self.db, services.spotify,
+                                                  self.context,
+                                                  Log('AudioController'))
         self.cogs: list['Cog'] = [OnlineCog(self),
                                   OfflineCog(self),
                                   ModCog(self),
                                   AdminCog(self)]
+
+    async def start(self) -> None:
+        self.log.info('Starting Twitch bot')
+        await self.db.admin_user(self.channel.lower())
+        await self.load_cogs()
+        await self.service.start()
+        await self.start_routines()
+
+    async def stop(self) -> None:
+        self.log.info('Stopping service')
+        await self.service.cleanup()
+        self.log.info('Stopping routines')
+        if hasattr(self, 'check_live_routine'):
+            self.check_live_routine.cancel()
+        if hasattr(self, 'ac_update_routine'):
+            self.ac_update_routine.cancel()
 
     async def on_join(self, channel: str) -> None:
         self.log.info(f'Joined channel: {channel}')
@@ -49,22 +70,6 @@ class Bot:
 
     async def on_live(self):
         self.log.info(f'{self.channel} is live!')
-
-    async def start(self):
-        self.log.info('Loading cogs')
-        await self.load_cogs()
-        self.log.info('Starting service')
-        await self.service.start()
-        await self.start_routines()
-
-    async def stop(self):
-        self.log.info('Stopping service')
-        await self.service.cleanup()
-        self.log.info('Stopping routines')
-        if hasattr(self, 'check_live_routine'):
-            self.check_live_routine.cancel()
-        if hasattr(self, 'ac_update_routine'):
-            self.ac_update_routine.cancel()
 
     async def load_cogs(self):
         for cog in self.cogs:

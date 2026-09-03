@@ -1,20 +1,22 @@
 from disc.webhook import DiscordHook
-from utils import Creds, DB, Log
+from services import Services
+from utils import Creds, DB, Settings
 import unittest
 
 
 class TestDiscord(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         creds = Creds()
-        queue_url = creds.discord.queue_webhook
-        leaderboard_url = creds.discord.leaderboard_webhook
         self.db = DB()
         await self.db.connect()
-        log = Log('Discord')
         self.channel = creds.twitch.channel
-        self.hook = DiscordHook(queue_url, leaderboard_url, self.db,
-                                self.channel, log)
+        services = Services(creds=creds, settings=Settings(), db=self.db,
+                            spotify=None, context=None)
+        self.hook = DiscordHook(services)
         await self.db_reset()
+
+    async def asyncTearDown(self):
+        await self.hook.stop()
 
     async def db_reset(self):
         await self.db.delete_all()

@@ -154,6 +154,12 @@ class DB:
             },
         )
 
+    async def set_position(self, req_id: int, position: float) -> None:
+        await self.client.queue.update(
+            where={'id': req_id},
+            data={'position': position},
+        )
+
     async def get_requester(self, url: str) -> str:
         song = await self.client.queue.find_first(where={"url": url})
         if song is None:
