@@ -123,6 +123,12 @@ Starts the Twitch bot.
 
 Stops the Twitch bot. Always `200 ControlResponse` (`running: false`).
 
+### PUT /twitch/active
+
+Enables or disables song requests, keeping the audio context in step (the same
+toggle as the `!sr-on` / `!sr-off` chat commands). Body `{ "active": bool }`,
+returns `{ "active": bool }`.
+
 ### POST /discord/start
 
 Starts the Discord hook.
@@ -134,6 +140,57 @@ Starts the Discord hook.
 ### POST /discord/stop
 
 Stops the Discord hook. Always `200 ControlResponse` (`running: false`).
+
+---
+
+## Setup and settings
+
+### GET /setup
+
+One call a dashboard can render a setup screen from. Reports which pieces are
+configured and whether Spotify is connected, without ever returning secret
+values.
+
+```json
+{
+  "channel": "channelname",
+  "twitch_configured": true,
+  "spotify_configured": true,
+  "spotify_connected": true,
+  "discord_queue_webhook": true,
+  "discord_leaderboard_webhook": false,
+  "server_token_set": true
+}
+```
+
+To connect Spotify, open `GET /` (it redirects to the Spotify authorization
+page, then back through `GET /callback`).
+
+### GET /settings
+
+The runtime settings.
+
+```json
+{ "active": true, "dev_mode": false, "sr_permission": "all", "veto_pass": 5 }
+```
+
+```typescript
+type Settings = {
+  active: boolean;      // are song requests enabled
+  dev_mode: boolean;
+  sr_permission: 'all' | 'subs' | 'followers' | 'privileged' | 'djs';
+  veto_pass: number;    // votes needed to veto (minimum 2)
+};
+```
+
+### PUT /settings
+
+Updates any subset of the settings; omitted fields are left unchanged. Body is a
+partial `Settings`. Returns the full `Settings` after the change.
+
+- `200 Settings` on success.
+- `400` if a value is invalid (e.g. `veto_pass` below 2, or an unknown
+  `sr_permission`).
 
 ---
 

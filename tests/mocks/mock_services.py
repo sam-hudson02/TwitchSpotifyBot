@@ -23,6 +23,7 @@ class MockTwitchBot:
         self.stopped = False
         self.skipped = False
         self.added = None
+        self.running = False
         self._start_ok = start_ok
         self.context = SimpleNamespace(live=True, active=True)
 
@@ -30,9 +31,11 @@ class MockTwitchBot:
         if not self._start_ok:
             raise RuntimeError('bad token')
         self.started = True
+        self.running = True
 
     async def stop(self):
         self.stopped = True
+        self.running = False
 
     async def skip(self):
         self.skipped = True
@@ -96,10 +99,12 @@ class MockQueueDB(MockDB):
 def mock_creds(channel='chan', bot_name='bot', queue_webhook='http://queue',
                leaderboard_webhook=None, server_token='token'):
     return SimpleNamespace(
-        twitch=SimpleNamespace(channel=channel, bot_name=bot_name),
+        twitch=SimpleNamespace(channel=channel, bot_name=bot_name,
+                               access_token='at', refresh_token='rt'),
         discord=SimpleNamespace(queue_webhook=queue_webhook,
                                 leaderboard_webhook=leaderboard_webhook),
-        spotify=SimpleNamespace(username='user'),
+        spotify=SimpleNamespace(username='user', client_id='cid',
+                                client_secret='sec'),
         server_token=server_token,
     )
 

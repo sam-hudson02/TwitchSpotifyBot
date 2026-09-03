@@ -94,6 +94,16 @@ class TwitchInterface(ABC):
     def running(self) -> bool:
         ...
 
+    @property
+    @abstractmethod
+    def active(self) -> bool:
+        ...
+
+    @property
+    @abstractmethod
+    def live(self) -> bool:
+        ...
+
     @abstractmethod
     async def start(self) -> None:
         ...

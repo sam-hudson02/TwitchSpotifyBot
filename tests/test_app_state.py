@@ -68,15 +68,14 @@ class TestAppState(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(ok)
         self.assertEqual(message, 'already running')
 
-    async def test_start_twitch_handles_factory_error(self):
+    async def test_factory_error_surfaces_at_construction(self):
+        # the Twitch bot is built eagerly in AppState.__init__, so a
+        # construction failure surfaces there rather than at start time
         def boom(services):
             raise RuntimeError('bad token')
 
-        state, _ = build_state(twitch_factory=boom)
-        ok, message = await state.start_twitch()
-        self.assertFalse(ok)
-        self.assertIn('bad token', message)
-        self.assertFalse(state.twitch_running)
+        with self.assertRaises(RuntimeError):
+            build_state(twitch_factory=boom)
 
     async def test_start_twitch_handles_start_error(self):
         state, _ = build_state(twitch_start_ok=False)
@@ -159,6 +158,17 @@ class TestAppState(unittest.IsolatedAsyncioTestCase):
         snapshot = {'track': 'song', 'artist': 'artist', 'requester': 'user'}
         state.services.context = SimpleNamespace(get_context=lambda: snapshot)
         self.assertEqual(state.now_playing(), snapshot)
+
+    async def test_set_active_updates_settings_and_context(self):
+        from types import SimpleNamespace
+        state, _ = build_state()
+        applied = []
+        state.services.settings = SimpleNamespace(
+            set_active=lambda a: applied.append(a))
+        state.services.context = SimpleNamespace(active=True)
+        state.set_active(False)
+        self.assertEqual(applied, [False])
+        self.assertFalse(state.services.context.active)
 
     async def test_shutdown_stops_services_and_disconnects_db(self):
         state, db = build_state()

@@ -61,8 +61,12 @@ class AppState:
         return self.services.db
 
     @property
+    def settings(self) -> Settings:
+        return self.services.settings
+
+    @property
     def twitch_running(self) -> bool:
-        return self.twitch is not None
+        return self.twitch.running
 
     @property
     def discord_running(self) -> bool:
@@ -132,6 +136,14 @@ class AppState:
             self.log.error(f'Error stopping Discord hook: {e}')
         self.discord = None
         return True, 'stopped'
+
+    # settings -----------------------------------------------------------
+
+    def set_active(self, active: bool) -> None:
+        """Enable/disable song requests, keeping the audio context in step (the
+        same pair the !sr-on / !sr-off chat commands set)."""
+        self.services.settings.set_active(active)
+        self.services.context.active = active
 
     # playback -----------------------------------------------------------
 

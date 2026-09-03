@@ -82,18 +82,17 @@ class Settings:
             self.save_settings()
 
     def set_permission(self, permission, save=True):
-        if type(permission) is Perms:
+        if isinstance(permission, Perms):
             self.__permission = permission
-            return
-
-        if type(permission) is not str:
-            raise SettingsError('Permission must be a string.')
-
-        permission = permission.lower()
-        if permission not in ['all', 'subs', 'followers', 'privileged']:
-            raise SettingsError('Permission must be either "all", \
-                                "subs", "followers" or "privileged".')
-        self.__permission = Perms(permission)
+        else:
+            if not isinstance(permission, str):
+                raise SettingsError('Permission must be a string.')
+            permission = permission.lower()
+            valid = [p.value for p in Perms]
+            if permission not in valid:
+                raise SettingsError(
+                    f'Permission must be one of {", ".join(valid)}.')
+            self.__permission = Perms(permission)
         if save:
             self.save_settings()
 

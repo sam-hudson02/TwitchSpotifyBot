@@ -61,3 +61,31 @@ class QueueAdd(BaseModel):
 
 class QueueMove(BaseModel):
     after: int | None = None
+
+
+class SetupStatus(BaseModel):
+    channel: str
+    twitch_configured: bool
+    spotify_configured: bool
+    spotify_connected: bool
+    discord_queue_webhook: bool
+    discord_leaderboard_webhook: bool
+    server_token_set: bool
+
+
+class SettingsModel(BaseModel):
+    active: bool
+    dev_mode: bool
+    sr_permission: str
+    veto_pass: int
+
+
+class SettingsUpdate(BaseModel):
+    active: bool | None = None
+    dev_mode: bool | None = None
+    sr_permission: str | None = None
+    veto_pass: int | None = None
+
+
+class ActiveUpdate(BaseModel):
+    active: bool

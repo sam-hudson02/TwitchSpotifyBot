@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 
 from server.deps import get_state, require_auth
-from server.models import TwitchStatus, ControlResponse
+from server.models import TwitchStatus, ControlResponse, ActiveUpdate
 from server.state import AppState
 
 router = APIRouter(prefix='/twitch', tags=['twitch'])
@@ -9,13 +9,13 @@ router = APIRouter(prefix='/twitch', tags=['twitch'])
 
 @router.get('/status', response_model=TwitchStatus)
 async def twitch_status(state: AppState = Depends(get_state)):
-    if state.twitch is None:
+    if not state.twitch_running:
         return TwitchStatus(running=False, channel=state.creds.twitch.channel)
     return TwitchStatus(running=True,
                         channel=state.creds.twitch.channel,
                         bot_name=state.creds.twitch.bot_name,
-                        live=state.twitch.context.live,
-                        active=state.twitch.context.active)
+                        live=state.twitch.live,
+                        active=state.twitch.active)
 
 
 @router.post('/start', response_model=ControlResponse,
@@ -39,3 +39,10 @@ async def start_twitch(state: AppState = Depends(get_state)):
 async def stop_twitch(state: AppState = Depends(get_state)):
     _, message = await state.stop_twitch()
     return ControlResponse(service='twitch', running=False, message=message)
+
+
+@router.put('/active', response_model=ActiveUpdate,
+            dependencies=[Depends(require_auth)])
+async def set_active(body: ActiveUpdate, state: AppState = Depends(get_state)):
+    state.set_active(body.active)
+    return ActiveUpdate(active=state.settings.active)
