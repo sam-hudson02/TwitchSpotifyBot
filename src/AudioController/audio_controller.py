@@ -1,7 +1,8 @@
 from prisma.models import Queue
 from AudioController.track_context import TrackContext
 from AudioController.track_info import TrackInfo
-from utils.errors import TrackNotFound, YoutubeLink, UnsupportedLink
+from utils.errors import (TrackNotFound, YoutubeLink, UnsupportedLink,
+                          NoCurrentTrack)
 import time
 from utils.async_timer import Timer
 from utils import Log, DB, SongReq
@@ -92,6 +93,10 @@ class AudioController:
         self.queue_blocked = False
         self.next = None
         self.history = []
+        # Spotify's playback endpoint lags a moment behind a track change, so
+        # set_requester polls instead of reading once (tests lower the interval)
+        self.requester_poll_attempts = 6
+        self.requester_poll_interval = 1.0
 
     async def add_to_queue(self, req: str, user: str) -> TrackInfo:
         words = req.split(' ')
@@ -157,23 +162,28 @@ class AudioController:
         return
 
     async def set_requester(self, song_req: Queue):
-        current_playback_id = self.spot.get_context().playback_id
-
-        if current_playback_id is None:
-            self.log.info('No current track.')
-            return
-
         playback_id = song_req.url.split('/')[-1]
-        if playback_id != current_playback_id:
-            self.log.info('Playback ID does not match. ' +
-                          f'{playback_id} != {current_playback_id}')
-            return
 
-        self.context.playback_id = playback_id
-        self.context.requester = song_req.requester
-        self.context.playing_queue = True
-        self.log.info(f'Set requester to {song_req.requester} for '
-                      f'{song_req.songName}')
+        # Spotify may still report the previous track for a moment after a
+        # change, so poll until it catches up rather than giving up on one read
+        for _ in range(self.requester_poll_attempts):
+            try:
+                current_playback_id = self.spot.get_context().playback_id
+            except NoCurrentTrack:
+                current_playback_id = None
+
+            if current_playback_id == playback_id:
+                self.context.playback_id = playback_id
+                self.context.requester = song_req.requester
+                self.context.playing_queue = True
+                self.log.info(f'Set requester to {song_req.requester} for '
+                              f'{song_req.songName}')
+                return
+
+            await asyncio.sleep(self.requester_poll_interval)
+
+        self.log.info(f'Could not resolve requester for {song_req.songName}; '
+                      'Spotify never reported it as the current track')
 
     def recheck_queue(self):
         if self.next is None:
@@ -212,22 +222,26 @@ class AudioController:
                     self.next = {'id': playback_id,
                                  'requester': next.requester}
                 else:
-                    self.req_timer = Timer(time_left + 3000,
+                    self.req_timer = Timer(time_left + 1000,
                                            self.set_requester, args=[next])
             if skipped:
                 self.spot.next()
-                self.req_timer = Timer(time_left + 3000,
+                self.req_timer = Timer(time_left + 1000,
                                        self.set_requester, args=[next])
             self.add_to_history(playback_id, next)
 
-        elif self.context.playing_queue:
-            # if no songs are in queue, play the playlist
+        elif skipped:
+            # an explicit skip always advances, whether a requested song or the
+            # playlist was playing; drop back to the playlist afterwards
+            self.spot.next()
             self.context.playing_queue = False
             self.context.requester = None
             await self.update_context()
 
-        elif skipped:
-            self.spot.next()
+        elif self.context.playing_queue:
+            # a requested song ended on its own, so fall back to the playlist
+            self.context.playing_queue = False
+            self.context.requester = None
             await self.update_context()
 
         return
