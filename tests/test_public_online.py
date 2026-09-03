@@ -152,6 +152,29 @@ class TestPublicOnline(unittest.IsolatedAsyncioTestCase):
         expected = f'@{self.channel} You can\'t rate your own song! LUL'
         self.assertEqual(self.socket.get_last(), expected)
 
+    async def testRateNoRequester(self):
+        await self.dbRefresh()
+        self.socket.from_twitch('!dev-on', self.channel, self.channel)
+
+        # a song is playing but its requester was never resolved (None). The
+        # old test masked this by setting context.requester manually; live, it
+        # is None until set_requester runs, which produced "@None" rates.
+        self.spot.set_current('test')
+        await self.ac.update_context()
+        self.assertIsNone(self.ac.context.requester)
+
+        author = 'someuser'
+        self.socket.from_twitch('!rate', author, self.channel)
+        await self.wrapper.read()
+        expected = (f"@{author} There's no requester to like for the "
+                    "current song!")
+        self.assertEqual(self.socket.get_last(), expected)
+
+        # no phantom "None" user, and no stray rate credited
+        usernames = [u.username for u in await self.db.get_all_users()]
+        self.assertNotIn('None', usernames)
+        self.assertNotIn(None, usernames)
+
     async def testRemove(self):
         await self.dbRefresh()
         self.socket.from_twitch('!dev-on', self.channel, self.channel)

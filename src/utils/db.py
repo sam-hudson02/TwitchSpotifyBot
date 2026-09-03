@@ -43,6 +43,8 @@ class DB:
         ) + 1
 
     async def add_rate(self, receiver: str, giver: str) -> None:
+        if not receiver:
+            return
         receiver_user = await self.get_user(receiver)
         giver_user = await self.get_user(giver)
         await self.client.user.update(

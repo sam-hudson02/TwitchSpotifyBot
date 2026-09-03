@@ -120,6 +120,10 @@ class OnlineCog(Cog):
                 veto_pass=self.settings.veto_pass))
 
     async def rate(self, ctx: Context):
+        if self.ac.context.requester is None:
+            await ctx.reply(self.commands.message('RATE', 'no_requester'))
+            return
+
         if self.rate_tracker.user_rated(ctx.user.username):
             await ctx.reply(self.commands.message('RATE', 'already_rated'))
             return

@@ -33,12 +33,17 @@ class VetoVotes:
 
 class RateTracker:
     def __init__(self, song_context: 'SongContext', db: 'DB') -> None:
-        self.track = ''
-        self.artist = ''
-        self.requester = ''
+        self.track = None
+        self.artist = None
         self.raters = []
         self.ctx = song_context
         self.db = db
+
+    @property
+    def requester(self) -> str | None:
+        # read live: the requester is set asynchronously after a track starts,
+        # so caching it (as the old code did) could freeze it at None
+        return self.ctx.requester
 
     def user_rated(self, user: str) -> bool:
         self.check_track()
@@ -47,9 +52,8 @@ class RateTracker:
     def check_track(self) -> None:
         if (self.ctx.track, self.ctx.artist) == (self.track, self.artist):
             return
-        self.track = str(self.ctx.track)
-        self.artist = str(self.ctx.artist)
-        self.requester = str(self.ctx.requester)
+        self.track = self.ctx.track
+        self.artist = self.ctx.artist
         self.raters = []
 
     async def add_rate(self, giver: str) -> None:
@@ -57,7 +61,7 @@ class RateTracker:
         await self.db.add_rate(self.requester, giver)
 
     def is_requester(self, user: str) -> bool:
-        return user == self.requester
+        return self.requester is not None and user == self.requester
 
 
 def target_finder(request: str) -> str:
