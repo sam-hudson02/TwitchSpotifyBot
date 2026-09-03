@@ -30,7 +30,7 @@ class AppState:
         self.services = services
         self._twitch_factory = twitch_factory
         self._discord_factory = discord_factory
-        self.twitch: TwitchInterface | None = None
+        self.twitch: TwitchInterface = self._twitch_factory(self.services)
         self.discord: DiscordInterface | None = None
         self.queue_socket = QueueSocket(self.queue_snapshot)
 
@@ -84,27 +84,25 @@ class AppState:
         await self.services.db.disconnect()
 
     async def start_twitch(self) -> tuple[bool, str]:
-        if self.twitch is not None:
+        if self.twitch.running == True:
             return True, 'already running'
         if not self.services.spotify.is_connected():
             return False, 'Spotify is not connected'
         try:
-            twitch = self._twitch_factory(self.services)
-            await twitch.start()
+            await self.twitch.start()
         except Exception as e:
             self.log.error(f'Failed to start Twitch bot: {e}')
             return False, f'Twitch bot could not start: {e}'
-        self.twitch = twitch
         return True, 'started'
 
     async def stop_twitch(self) -> tuple[bool, str]:
-        if self.twitch is None:
+        if self.twitch.running == False:
             return True, 'not running'
         try:
             await self.twitch.stop()
         except Exception as e:
             self.log.error(f'Error stopping Twitch bot: {e}')
-        self.twitch = None
+            return False, f'Twitch bot could not stop: {e}'
         return True, 'stopped'
 
     async def start_discord(self) -> tuple[bool, str]:

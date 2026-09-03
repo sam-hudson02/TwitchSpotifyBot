@@ -39,6 +39,7 @@ class Bot(TwitchInterface):
                                   OfflineCog(self),
                                   ModCog(self),
                                   AdminCog(self)]
+        self.running: bool = False
 
     async def start(self) -> None:
         self.log.info('Starting Twitch bot')
@@ -46,6 +47,7 @@ class Bot(TwitchInterface):
         await self.load_cogs()
         await self.service.start()
         await self.start_routines()
+        self.running = True
 
     async def stop(self) -> None:
         self.log.info('Stopping service')
@@ -55,6 +57,7 @@ class Bot(TwitchInterface):
             self.check_live_routine.cancel()
         if hasattr(self, 'ac_update_routine'):
             self.ac_update_routine.cancel()
+        self.running = False
 
     async def on_join(self, channel: str) -> None:
         self.log.info(f'Joined channel: {channel}')

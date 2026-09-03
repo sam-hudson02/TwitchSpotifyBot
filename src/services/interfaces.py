@@ -88,6 +88,11 @@ class SpotifyInterface(ABC):
 
 class TwitchInterface(ABC):
     """The Twitch chat bot."""
+    # is running property
+    @property
+    @abstractmethod
+    def running(self) -> bool:
+        ...
 
     @abstractmethod
     async def start(self) -> None:
