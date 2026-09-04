@@ -107,6 +107,17 @@ class TestRoutes(unittest.TestCase):
         self.assertFalse(r.json()['active'])
         self.assertFalse(self.state.services.context.active)
 
+    def test_cors_header_on_request(self):
+        r = self.client.get('/queue', headers={'Origin': 'http://dash.local'})
+        self.assertEqual(r.headers.get('access-control-allow-origin'), '*')
+
+    def test_cors_preflight(self):
+        r = self.client.options('/settings', headers={
+            'Origin': 'http://dash.local',
+            'Access-Control-Request-Method': 'PUT'})
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('access-control-allow-origin', r.headers)
+
 
 class TestUserRoutes(unittest.TestCase):
     def setUp(self):

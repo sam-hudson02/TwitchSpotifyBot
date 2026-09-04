@@ -21,6 +21,13 @@ Authorization: Bearer <SERVER_API_TOKEN>
 - `503` if the server has no `SERVER_API_TOKEN` configured. It fails closed: the
   route is refused rather than left open.
 
+### CORS
+
+For a browser dashboard on a different origin, set `SERVER_CORS_ORIGINS` to a
+comma-separated list of allowed origins. Left unset, any origin is allowed
+(mutations are still guarded by the token, so this is safe). CORS covers the
+HTTP routes; the WebSocket is guarded by its `?token=` query param instead.
+
 ---
 
 ## Spotify auth
