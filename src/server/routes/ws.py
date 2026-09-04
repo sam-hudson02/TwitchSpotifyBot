@@ -6,17 +6,25 @@ from server.state import AppState
 router = APIRouter()
 
 
+def token_from_subprotocols(subprotocols: list[str]) -> str | None:
+    """The token is sent as a `bearer` subprotocol pair so it rides in the
+    Sec-WebSocket-Protocol header rather than the URL (which gets logged).
+    Clients offer ['bearer', '<token>']."""
+    if len(subprotocols) >= 2 and subprotocols[0] == 'bearer':
+        return subprotocols[1]
+    return None
+
+
 @router.websocket('/ws/queue')
 async def ws_queue(websocket: WebSocket):
     state: AppState = websocket.app.state.app_state
-    # browsers can't set headers on a WebSocket, so the token comes as a query
-    # param; fail closed if it is missing/wrong or none is configured
-    token = websocket.query_params.get('token')
+    token = token_from_subprotocols(websocket.scope.get('subprotocols', []))
     if not check_token(state.creds.server_token, token):
         await websocket.close(code=1008)
         return
 
-    await state.queue_socket.connect(websocket)
+    # echo back only the 'bearer' marker, never the token itself
+    await state.queue_socket.connect(websocket, subprotocol='bearer')
     try:
         while True:
             data = await websocket.receive_json()

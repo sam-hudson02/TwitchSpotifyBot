@@ -365,9 +365,18 @@ Grants or revokes the dj role (used by the "DJs only" request mode). `200 User`.
 
 ### WS /ws/queue
 
-Protected. Browsers can't set headers on a WebSocket, so pass the token as a
-query param: `ws://host:5000/ws/queue?token=<SERVER_API_TOKEN>`. A missing/wrong
-token (or none configured) closes the socket with code `1008`.
+Protected. Pass the token as a WebSocket subprotocol pair rather than in the URL
+(a query-string token would end up in access logs). Offer two subprotocols,
+`bearer` and the token itself:
+
+```js
+new WebSocket('ws://host:5000/ws/queue', ['bearer', '<SERVER_API_TOKEN>']);
+```
+
+The server validates the second value and, on success, selects the `bearer`
+subprotocol (the token is never echoed back). A missing or wrong token, or none
+configured, closes the socket with code `1008`. The token must be a valid
+subprotocol token (the recommended `openssl rand -hex 32` value is fine).
 
 On connect, and after every change (including songs the Twitch bot adds, picked
 up by a 2s poll while clients are connected), the server pushes the full queue:

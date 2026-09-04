@@ -10,8 +10,9 @@ class FakeWebSocket:
         self.accepted = False
         self._fail = fail
 
-    async def accept(self):
+    async def accept(self, subprotocol=None):
         self.accepted = True
+        self.subprotocol = subprotocol
 
     async def send_json(self, payload):
         if self._fail:

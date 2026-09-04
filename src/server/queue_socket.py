@@ -19,8 +19,8 @@ class QueueSocket:
         self._poll_task: asyncio.Task | None = None
         self._last: list[dict] | None = None
 
-    async def connect(self, ws: WebSocket) -> None:
-        await ws.accept()
+    async def connect(self, ws: WebSocket, subprotocol: str | None = None) -> None:
+        await ws.accept(subprotocol=subprotocol)
         self.connections.add(ws)
         self._last = await self._snapshot()
         await ws.send_json({'queue': self._last})
