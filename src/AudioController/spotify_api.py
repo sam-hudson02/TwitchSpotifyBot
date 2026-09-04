@@ -1,35 +1,118 @@
+import json
+import os
+
 import spotipy
+from spotipy.oauth2 import CacheFileHandler
+
 from utils import SpotifyCreds
 from utils.errors import BadLink, NoCurrentTrack, TrackNotFound
 from AudioController.track_info import TrackInfo
 from AudioController.track_context import TrackContext
 from utils.logger import Log
+from services.interfaces import SpotifyInterface
 
 
-class Spotify:
+class Spotify(SpotifyInterface):
     def __init__(self, creds: SpotifyCreds):
         self.log = Log('Spotify')
         self.user = creds.username
         self.client_id = creds.client_id
         self.secret = creds.client_secret
         self.scopes = creds.scopes
-        self.token = self.get_token()
-        self._sp = self.auth()
-        self._sp.search(q='test')
+        self.cache_path = f'./secret/.cache-{self.user}'
+        self.cache_handler = CacheFileHandler(cache_path=self.cache_path)
+        self._auth = None
+        self._sp = spotipy.Spotify(auth_manager=self.oauth())
+        self.connected = False
 
-    def get_token(self):
-        cache_path = f'./secret/.cache-{self.user}'
-        handler = spotipy.oauth2.CacheFileHandler(cache_path=cache_path)
+    # connection / authorization ------------------------------------------
 
+    def oauth(self, redirect_uri: str = 'https://open.spotify.com/') \
+            -> spotipy.SpotifyOAuth:
         return spotipy.SpotifyOAuth(client_id=self.client_id,
                                     client_secret=self.secret,
-                                    redirect_uri='https://open.spotify.com/',
-                                    cache_handler=handler,
+                                    redirect_uri=redirect_uri,
+                                    cache_handler=self.cache_handler,
                                     open_browser=False,
                                     scope=self.scopes)
 
-    def auth(self):
-        return spotipy.Spotify(auth_manager=self.token)
+    def connect(self) -> bool:
+        self.connected = self._validate_cache()
+        return self.connected
+
+    def is_connected(self) -> bool:
+        return self.connected
+
+    def _validate_cache(self) -> bool:
+        self.log.info('Validating cached Spotify token')
+
+        if not os.path.exists(self.cache_path):
+            self.log.info('No cached Spotify token found')
+            return False
+
+        try:
+            with open(self.cache_path, 'r') as f:
+                cache_data = json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            self.log.error(f'Could not read cached Spotify token: {e}')
+            return False
+
+        if cache_data.get('access_token') is None \
+                or cache_data.get('refresh_token') is None:
+            self.log.error('Cached Spotify token is missing access or '
+                           'refresh token')
+            return False
+
+        if self.verify():
+            self.log.info('Cached Spotify token is valid')
+            return True
+
+        self.log.error('Cached Spotify token is invalid')
+        return False
+
+    def verify(self) -> bool:
+        """Confirm the credentials work by making a real API call.
+
+        spotipy refreshes an expired access token from the cached refresh
+        token, so this works both after an interactive login and on startup."""
+        try:
+            self._sp.current_user()
+            self.log.info('Spotify credentials verified')
+            return True
+        except Exception as e:
+            self.log.error(f'Spotify credential check failed: {e}')
+            return False
+
+    def authorize_url(self, base_url: str) -> str:
+        redirect_uri = base_url + 'callback'
+        # Spotify no longer accepts "localhost" as a redirect host; the loopback
+        # IP literal is required, so rewrite it transparently if the user
+        # browsed to localhost instead of 127.0.0.1.
+        redirect_uri = redirect_uri.replace('://localhost:', '://127.0.0.1:')
+        self._auth = self.oauth(redirect_uri)
+        return self._auth.get_authorize_url()
+
+    def handle_callback(self, request_url: str) -> bool:
+        self.log.info('Spotify callback')
+        if self._auth is None:
+            self.log.error('Spotify authorization was not initiated')
+            return False
+
+        try:
+            self.log.info('Getting access token')
+            code = self._auth.parse_response_code(request_url)
+            self._auth.get_access_token(code, as_dict=False, check_cache=False)
+        except Exception as e:
+            self.log.error(f'Failed to get Spotify access token: {e}')
+            return False
+
+        if not self.verify():
+            return False
+
+        self.connected = True
+        return True
+
+    # playback / queries --------------------------------------------------
 
     def search_song(self, query) -> str:
         try:

@@ -3,9 +3,9 @@ from utils.settings import Settings
 from utils.logger import Log
 from utils.db import DB
 from utils.creds import Creds
-from twitch.wrapper import Wrapper
 from twitch.bot import Bot
-from AudioController.audio_controller import AudioController, Context
+from AudioController.audio_controller import Context
+from services import Services
 from mocks.mock_sock import MockSocket
 from mocks.mock_spot import MockSpot
 import random
@@ -18,7 +18,6 @@ class TestPublicOnline(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.creds = Creds()
         self.socket = MockSocket(self.creds)
-        self.wrapper = Wrapper(self.creds.twitch, self.socket)
         self.db = DB()
         await self.db.connect()
         await self.db.delete_all()
@@ -26,11 +25,13 @@ class TestPublicOnline(unittest.IsolatedAsyncioTestCase):
         await self.db.get_user(self.channel, True, True)
         self.spot = MockSpot()
         self.audio_ctx = Context()
-        log = Log('AC')
-        self.ac = AudioController(self.db, self.spot, self.audio_ctx, log)
         self.settings = Settings()
-        self.bot = Bot(self.wrapper,  self.db, self.settings,
-                       self.ac, self.creds.twitch)
+        services = Services(creds=self.creds, settings=self.settings,
+                            db=self.db, spotify=self.spot,
+                            context=self.audio_ctx)
+        self.bot = Bot(services, socket=self.socket)
+        self.wrapper = self.bot.service
+        self.ac = self.bot.ac
         await self.bot.load_cogs()
         print('setup complete')
 

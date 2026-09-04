@@ -33,12 +33,17 @@ class VetoVotes:
 
 class RateTracker:
     def __init__(self, song_context: 'SongContext', db: 'DB') -> None:
-        self.track = ''
-        self.artist = ''
-        self.requester = ''
+        self.track = None
+        self.artist = None
         self.raters = []
         self.ctx = song_context
         self.db = db
+
+    @property
+    def requester(self) -> str | None:
+        # read live: the requester is set asynchronously after a track starts,
+        # so caching it (as the old code did) could freeze it at None
+        return self.ctx.requester
 
     def user_rated(self, user: str) -> bool:
         self.check_track()
@@ -47,9 +52,8 @@ class RateTracker:
     def check_track(self) -> None:
         if (self.ctx.track, self.ctx.artist) == (self.track, self.artist):
             return
-        self.track = str(self.ctx.track)
-        self.artist = str(self.ctx.artist)
-        self.requester = str(self.ctx.requester)
+        self.track = self.ctx.track
+        self.artist = self.ctx.artist
         self.raters = []
 
     async def add_rate(self, giver: str) -> None:
@@ -57,7 +61,7 @@ class RateTracker:
         await self.db.add_rate(self.requester, giver)
 
     def is_requester(self, user: str) -> bool:
-        return user == self.requester
+        return self.requester is not None and user == self.requester
 
 
 def target_finder(request: str) -> str:
@@ -92,8 +96,12 @@ def time_finder(request: str) -> dict:
     return {'time': time, 'unit': unit}
 
 
+async def is_moderator(chatter: Chatter, user: User) -> bool:
+    return chatter.is_broadcaster or user.admin or await chatter.is_mod()
+
+
 async def is_privileged(chatter: Chatter, user: User):
-    if user.mod or user.admin:
+    if user.dj or user.admin:
         return True
     elif await chatter.is_vip():
         return True
@@ -107,7 +115,8 @@ async def is_privileged(chatter: Chatter, user: User):
 
 async def check_permission(settings: Settings, chatter: Chatter, user: User):
     perm: Perms = settings.permission
-    if chatter.is_broadcaster:
+    # moderators can always request, whatever the current mode
+    if await is_moderator(chatter, user):
         return
     if perm is Perms.SUBS:
         if not await chatter.is_subscriber():
@@ -118,3 +127,6 @@ async def check_permission(settings: Settings, chatter: Chatter, user: User):
     if perm is Perms.PRIVILEGED:
         if not await is_privileged(chatter, user):
             raise BadPerms('mod, subscriber or vip')
+    if perm is Perms.DJS:
+        if not user.dj:
+            raise BadPerms('dj')

@@ -7,21 +7,22 @@ from typing import Optional
 import asyncio
 import aiohttp
 
+from services import Services, DiscordInterface
 
-class DiscordHook:
-    def __init__(self, queue_url: str | None, leaderboard_url: str | None,
-                 db: DB, channel: str, log: Log,
+
+class DiscordHook(DiscordInterface):
+    def __init__(self, services: Services,
                  session: Optional[aiohttp.ClientSession] = None):
-        self.log = log
-        self.db = db
-        self.twitch_channel = channel
+        self.log = Log('Discord')
+        self.db: DB = services.db
+        self.twitch_channel = services.creds.twitch.channel
+        queue_url = services.creds.discord.queue_webhook
+        leaderboard_url = services.creds.discord.leaderboard_webhook
         self.queue: list[QueueModel] = []
         self.leaderboard: Leaderboard = Leaderboard([])
 
-        if session is None:
-            self.session = aiohttp.ClientSession()
-        else:
-            self.session = session
+        self.session = session if session is not None else \
+            aiohttp.ClientSession()
 
         self.queue_webhook: Webhook | None = None
         if queue_url is not None:
@@ -37,6 +38,22 @@ class DiscordHook:
 
         self.q_message: WebhookMessage | None = None
         self.l_message: WebhookMessage | None = None
+        self._task: asyncio.Task | None = None
+
+    async def start(self) -> bool:
+        if self.queue_webhook is None and self.leaderboard_webhook is None:
+            self.log.error('No Discord Webhooks Provided')
+            return False
+        self.log.info('Starting Discord hook')
+        self._task = asyncio.create_task(self.update())
+        return True
+
+    async def stop(self) -> None:
+        self.log.info('Stopping Discord hook')
+        if self._task is not None:
+            self._task.cancel()
+            self._task = None
+        await self.cleanup()
 
     def embed_queue(self, queue: list[QueueModel]):
         if len(queue) == 0:
@@ -47,7 +64,7 @@ class DiscordHook:
         header = ['Position', 'Track', 'Artist/s', 'Requester', 'id']
         for req in queue:
             body.append([req.position,
-                         req.name,
+                         req.songName,
                          req.artist,
                          req.requester,
                          req.id])
@@ -127,20 +144,5 @@ class DiscordHook:
             await self.q_message.delete()
         if self.l_message is not None:
             await self.l_message.delete()
-        # disconnect from discord
-        if self.leaderboard_webhook is not None:
-            await self.leaderboard_webhook.session.close()
-        if self.queue_webhook is not None:
-            await self.queue_webhook.session.close()
-
-    def __del__(self):
-        self.log.info('Cleaning up discord hook')
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-        if loop is not None and loop.is_running():
-            # inside a running loop: schedule cleanup, best-effort
-            loop.create_task(self.cleanup())
-        else:
-            asyncio.run(self.cleanup())
+        if not self.session.closed:
+            await self.session.close()

@@ -30,6 +30,7 @@ class Wrapper:
         # user's own messages back to their authenticated session, so an
         # anonymous reader is needed to see messages from the bot's own account.
         self.read_sock: Optional[socket.socket] = read_sock or sock
+        self._listen_task: Optional[asyncio.Task] = None
 
     async def empty(self, *args, **kwargs):
         pass
@@ -103,20 +104,20 @@ class Wrapper:
         self._close_sockets()
 
     async def cleanup(self):
+        if self._listen_task is not None:
+            self._listen_task.cancel()
+            self._listen_task = None
         self.disconnect()
         await self.api.close()
 
     async def start(self):
         await self.connect()
-        th.Thread(target=self.run_listen).start()
+        # listen on the running loop so message handling (DB, token, HTTP) stays
+        # on the same loop everything else is bound to; only the blocking socket
+        # recv is offloaded (see read()).
+        self._listen_task = asyncio.create_task(self.listen())
         # keep the authenticated (send) connection alive by answering its PINGs
-        th.Thread(target=self._keepalive_loop).start()
-
-    def run_listen(self):
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.create_task(self.listen())
-        loop.run_forever()
+        th.Thread(target=self._keepalive_loop, daemon=True).start()
 
     def _keepalive_loop(self):
         # the send connection never routes messages (they arrive on read_sock),
@@ -156,7 +157,10 @@ class Wrapper:
     async def read(self):
         if self.read_sock is None:
             return
-        data = self.read_sock.recv(2048).decode("utf-8")
+        # recv blocks, so run it in a worker thread; the handlers it feeds then
+        # run back on the event loop (where the DB/token/HTTP clients live)
+        raw = await asyncio.to_thread(self.read_sock.recv, 2048)
+        data = raw.decode("utf-8")
         for line in data.split("\r\n"):
             await self._handle_line(line)
 

@@ -32,10 +32,14 @@ class Chatter:
 class Message:
     def __init__(self, raw: str, service: 'Wrapper'):
         self.wrapper = service
-        self.tags = self._get_tags(raw)
+        # split the '@tags' block off at the first space; tag values such as
+        # `emotes` legitimately contain colons, so never split tags on ':'
+        tag_str, _, rest = raw[1:].partition(' ') if raw.startswith('@') \
+            else ('', '', raw)
+        self.tags = self._get_tags(tag_str)
         self.id: str = self._get_id()
         self.chatter = self._get_chatter()
-        self.content = self._get_message(raw)
+        self.content = self._get_message(rest)
         self.timestamp = self.tags['tmi-sent-ts']
         self.room_id = self.tags['room-id']
 
@@ -45,17 +49,17 @@ class Message:
     def _get_chatter(self) -> Chatter:
         return Chatter(self.tags, self.wrapper.api)
 
-    def _get_message(self, raw: str) -> str:
-        content = raw.split(':')[2:]
+    def _get_message(self, rest: str) -> str:
+        # `rest` is ':source COMMAND params :trailing'; the body is everything
+        # after the source prefix, so drop the first two ':'-separated parts
+        content = rest.split(':')[2:]
         return ':'.join(content).strip('\r\n')
 
-    def _get_tags(self, raw: str) -> dict:
-        tags = raw.split(':')[0]
-        tags = tags.split(';')
-        tags = [tag.split('=') for tag in tags]
-        if tags == [['']]:
+    def _get_tags(self, tag_str: str) -> dict:
+        if not tag_str:
             return {}
-        return {tag[0]: tag[1] for tag in tags}
+        pairs = [tag.split('=', 1) for tag in tag_str.split(';')]
+        return {pair[0]: pair[1] if len(pair) > 1 else '' for pair in pairs}
 
     async def reply(self, message: str):
         await self.wrapper.send(f"@{self.chatter.name} {message}")

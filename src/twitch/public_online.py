@@ -91,7 +91,7 @@ class OnlineCog(Cog):
             await ctx.reply(self.commands.message('NEXT', 'empty'))
             return
         await ctx.reply(self.commands.message('NEXT', 'next',
-                                              song=next_song.name,
+                                              song=next_song.songName,
                                               artist=next_song.artist,
                                               requester=next_song.requester))
 
@@ -101,7 +101,7 @@ class OnlineCog(Cog):
             await ctx.reply(self.commands.message('REMOVE', 'no_requests'))
         else:
             await ctx.reply(self.commands.message('REMOVE', 'removed',
-                                                  song=req.name,
+                                                  song=req.songName,
                                                   artist=req.artist))
 
     async def veto(self, ctx: Context):
@@ -120,6 +120,10 @@ class OnlineCog(Cog):
                 veto_pass=self.settings.veto_pass))
 
     async def rate(self, ctx: Context):
+        if self.ac.context.requester is None:
+            await ctx.reply(self.commands.message('RATE', 'no_requester'))
+            return
+
         if self.rate_tracker.user_rated(ctx.user.username):
             await ctx.reply(self.commands.message('RATE', 'already_rated'))
             return

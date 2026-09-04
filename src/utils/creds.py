@@ -124,6 +124,9 @@ class Creds:
         self.twitch: TwitchCreds = TwitchCreds()
         self.discord: DiscordCreds = DiscordCreds()
         self.spotify: SpotifyCreds = SpotifyCreds()
+        # bearer token guarding mutating API routes; unset means those routes
+        # are refused (fail closed)
+        self.server_token: str | None = get_optional_str_env('SERVER_API_TOKEN')
 
     def load_env(self):
         try:

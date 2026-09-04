@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM python:3.14-slim AS builder
 
 ENV PYTHONUNBUFFERED=1 \
@@ -14,11 +15,16 @@ RUN apt-get update \
 WORKDIR /Sbotify
 
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev
 
+# `prisma generate` depends only on the schema, so copy prisma/ (not src/)
+# first. This layer — including the downloaded Prisma engine — is then reused
+# whenever only application code changes, instead of re-downloading every build.
+# The cache mount keeps the download across cache-busting builds too.
 COPY prisma prisma
+RUN --mount=type=cache,target=/root/.npm uv run prisma generate
+
 COPY src src
-RUN uv run prisma generate
 
 
 FROM python:3.14-slim

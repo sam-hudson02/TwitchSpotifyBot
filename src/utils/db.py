@@ -11,6 +11,9 @@ class DB:
     async def connect(self):
         await self.client.connect()
 
+    async def disconnect(self):
+        await self.client.disconnect()
+
     async def reset_all_user_stats(self) -> None:
         await self.client.user.update_many(
             where={},
@@ -21,13 +24,13 @@ class DB:
             },
         )
 
-    async def get_user(self, username, admin=False, mod=False) -> User:
+    async def get_user(self, username, admin=False, dj=False) -> User:
         user = await self.client.user.find_unique(where={"username": username})
         if user is None:
             user = await self.client.user.create(data={
                 "username": username,
                 "admin": admin,
-                "mod": mod,
+                "dj": dj,
             })
         return user
 
@@ -40,6 +43,8 @@ class DB:
         ) + 1
 
     async def add_rate(self, receiver: str, giver: str) -> None:
+        if not receiver:
+            return
         receiver_user = await self.get_user(receiver)
         giver_user = await self.get_user(giver)
         await self.client.user.update(
@@ -98,7 +103,7 @@ class DB:
     async def check_if_in_queue(self, song: SongReq) -> bool:
         return await self.client.queue.find_first(
             where={
-                'name': song.name,
+                'songName': song.name,
                 'artist': song.artist,
             },
         ) is not None
@@ -107,17 +112,8 @@ class DB:
         if await self.check_if_in_queue(song):
             raise TrackAlreadyInQueue(track=song.name, artist=song.artist)
 
-        position = await self.client.queue.count(where={}) + 1
-        await self.client.queue.create(
-            data={
-                "name": song.name,
-                "artist": song.artist,
-                "url": song.url,
-                "requester": song.requester,
-                "position": position,
-            }
-        )
-
+        # the requester must exist before the queue row: the Queue.requester
+        # foreign key references User.username
         await self.client.user.upsert(
             where={"username": song.requester},
             data={
@@ -130,6 +126,18 @@ class DB:
                     },
                 },
             },
+        )
+
+        last = await self.client.queue.find_first(order={"position": "desc"})
+        position = last.position + 1 if last is not None else 1
+        await self.client.queue.create(
+            data={
+                "songName": song.name,
+                "artist": song.artist,
+                "url": song.url,
+                "requester": song.requester,
+                "position": position,
+            }
         )
 
     async def get_queue(self) -> list[Queue]:
@@ -146,6 +154,12 @@ class DB:
             where={
                 'id': req_id,
             },
+        )
+
+    async def set_position(self, req_id: int, position: float) -> None:
+        await self.client.queue.update(
+            where={'id': req_id},
+            data={'position': position},
         )
 
     async def get_requester(self, url: str) -> str:
@@ -171,19 +185,20 @@ class DB:
         )
 
     async def delete_all(self) -> None:
-        await self.client.user.delete_many(where={})
+        # queue rows reference users, so clear them before the users they point to
         await self.client.queue.delete_many(where={})
+        await self.client.user.delete_many(where={})
 
-    async def mod_user(self, username: str) -> None:
+    async def dj_user(self, username: str) -> None:
         await self.client.user.upsert(
             where={"username": username},
             data={
                 'create': {
                     "username": username,
-                    "mod": True,
+                    "dj": True,
                 },
                 'update': {
-                    "mod": True,
+                    "dj": True,
                 }
             },
         )
@@ -195,19 +210,19 @@ class DB:
                 'create': {
                     "username": username,
                     "admin": True,
-                    "mod": True,
+                    "dj": True,
                 },
                 'update': {
                     "admin": True,
-                    "mod": True,
+                    "dj": True,
                 }
             },
         )
 
-    async def unmod_user(self, username: str) -> None:
+    async def undj_user(self, username: str) -> None:
         await self.client.user.update(
             where={"username": username},
             data={
-                "mod": False,
+                "dj": False,
             },
         )
