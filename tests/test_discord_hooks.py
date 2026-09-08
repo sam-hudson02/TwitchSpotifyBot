@@ -1,20 +1,24 @@
-from disc.webhook import DiscordHook
-from utils import Creds, DB, Log
 import unittest
+
+from disc.webhook import DiscordHook
+from services import Services
+from utils import DB, Creds, Settings
 
 
 class TestDiscord(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         creds = Creds()
-        queue_url = creds.discord.queue_webhook
-        leaderboard_url = creds.discord.leaderboard_webhook
         self.db = DB()
         await self.db.connect()
-        log = Log('Discord')
         self.channel = creds.twitch.channel
-        self.hook = DiscordHook(queue_url, leaderboard_url, self.db,
-                                self.channel, log)
+        services = Services(
+            creds=creds, settings=Settings(), db=self.db, spotify=None, context=None
+        )
+        self.hook = DiscordHook(services)
         await self.db_reset()
+
+    async def asyncTearDown(self):
+        await self.hook.stop()
 
     async def db_reset(self):
         await self.db.delete_all()
@@ -40,12 +44,11 @@ class TestDiscord(unittest.IsolatedAsyncioTestCase):
         # check the leaderboard
         leaderboard = await self.db.get_leaderboard()
         embed = await self.hook.embed_leaderboard(leaderboard)
-        expected_title = f'{self.channel}\'s Song Request Leaderboard'
+        expected_title = f"{self.channel}'s Song Request Leaderboard"
         self.assertEqual(embed.title, expected_title)
         self.assertEqual(embed.fields[0].name, 'Position')
         self.assertEqual(embed.fields[0].value, '1\n2\n3\n4')
         self.assertEqual(embed.fields[1].name, 'User')
-        self.assertEqual(embed.fields[1].value,
-                         f'user3\nuser2\nuser1\n{self.channel}')
+        self.assertEqual(embed.fields[1].value, f'user3\nuser2\nuser1\n{self.channel}')
         self.assertEqual(embed.fields[2].name, 'Rates')
         self.assertEqual(embed.fields[2].value, '3\n2\n1\n0')

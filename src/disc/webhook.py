@@ -1,59 +1,78 @@
-from discord import Webhook, WebhookMessage, Embed
-from table2ascii import table2ascii as t2a, PresetStyle
-from utils.db import DB, Leaderboard
-from prisma.models import Queue as QueueModel
-from utils.logger import Log
-from typing import Optional
 import asyncio
+from typing import Optional
+
 import aiohttp
+from discord import Embed, Webhook, WebhookMessage
+from prisma.models import Queue as QueueModel
+from table2ascii import PresetStyle
+from table2ascii import table2ascii as t2a
+
+from services import DiscordInterface, Services
+from utils.db import DB, Leaderboard
+from utils.logger import Log
 
 
-class DiscordHook:
-    def __init__(self, queue_url: str | None, leaderboard_url: str | None,
-                 db: DB, channel: str, log: Log,
-                 session: Optional[aiohttp.ClientSession] = None):
-        self.log = log
-        self.db = db
-        self.twitch_channel = channel
+class DiscordHook(DiscordInterface):
+    def __init__(
+        self, services: Services, session: Optional[aiohttp.ClientSession] = None
+    ):
+        self.log = Log('Discord')
+        self.db: DB = services.db
+        self.twitch_channel = services.creds.twitch.channel
+        queue_url = services.creds.discord.queue_webhook
+        leaderboard_url = services.creds.discord.leaderboard_webhook
         self.queue: list[QueueModel] = []
         self.leaderboard: Leaderboard = Leaderboard([])
 
-        if session is None:
-            self.session = aiohttp.ClientSession()
-        else:
-            self.session = session
+        self.session = session if session is not None else aiohttp.ClientSession()
 
         self.queue_webhook: Webhook | None = None
         if queue_url is not None:
             self.log.info('Creating webhook for queue')
-            self.queue_webhook = Webhook.from_url(
-                queue_url, session=self.session)
+            self.queue_webhook = Webhook.from_url(queue_url, session=self.session)
 
         self.leaderboard_webhook: Webhook | None = None
         if leaderboard_url is not None:
             self.log.info('Creating webhook for leaderboard')
             self.leaderboard_webhook = Webhook.from_url(
-                leaderboard_url, session=self.session)
+                leaderboard_url, session=self.session
+            )
 
         self.q_message: WebhookMessage | None = None
         self.l_message: WebhookMessage | None = None
+        self._task: asyncio.Task | None = None
+
+    async def start(self) -> bool:
+        if self.queue_webhook is None and self.leaderboard_webhook is None:
+            self.log.error('No Discord Webhooks Provided')
+            return False
+        self.log.info('Starting Discord hook')
+        self._task = asyncio.create_task(self.update())
+        return True
+
+    async def stop(self) -> None:
+        self.log.info('Stopping Discord hook')
+        if self._task is not None:
+            self._task.cancel()
+            self._task = None
+        await self.cleanup()
 
     def embed_queue(self, queue: list[QueueModel]):
         if len(queue) == 0:
-            return f"{self.twitch_channel} Song Request Queue: \n" \
-                   f"```\nQueue is Currently Empty!\n```"
+            return (
+                f'{self.twitch_channel} Song Request Queue: \n'
+                f'```\nQueue is Currently Empty!\n```'
+            )
 
         body = []
         header = ['Position', 'Track', 'Artist/s', 'Requester', 'id']
         for req in queue:
-            body.append([req.position,
-                         req.name,
-                         req.artist,
-                         req.requester,
-                         req.id])
+            body.append([req.position, req.songName, req.artist, req.requester, req.id])
 
-        queue_content = f"{self.twitch_channel} Song Request Queue: \n" \
-                        f"```\n{t2a(header=header, body=body, style=PresetStyle.thin_rounded)}\n```"
+        queue_content = (
+            f'{self.twitch_channel} Song Request Queue: \n'
+            f'```\n{t2a(header=header, body=body, style=PresetStyle.thin_rounded)}\n```'
+        )
 
         if len(queue_content) < 2000:
             return queue_content
@@ -62,18 +81,18 @@ class DiscordHook:
 
     async def embed_leaderboard(self, leaderboard: Leaderboard):
         leaderboard = await self.db.get_leaderboard()
-        embed = Embed(
-            title=f'{self.twitch_channel}\'s Song Request Leaderboard')
+        embed = Embed(title=f"{self.twitch_channel}'s Song Request Leaderboard")
         if len(leaderboard.sorted) > 0:
-            embed.add_field(name='Position', value=leaderboard.sorted_position,
-                            inline=True)
-            embed.add_field(name='User', value=leaderboard.sorted_users,
-                            inline=True)
-            embed.add_field(name='Rates', value=leaderboard.sorted_rates,
-                            inline=True)
+            embed.add_field(
+                name='Position', value=leaderboard.sorted_position, inline=True
+            )
+            embed.add_field(name='User', value=leaderboard.sorted_users, inline=True)
+            embed.add_field(name='Rates', value=leaderboard.sorted_rates, inline=True)
         else:
-            embed.add_field(name='Leaderboard is currently empty!',
-                            value='No has received any rates yet!')
+            embed.add_field(
+                name='Leaderboard is currently empty!',
+                value='No has received any rates yet!',
+            )
         return embed
 
     async def send_queue(self):
@@ -85,8 +104,7 @@ class DiscordHook:
         q = self.embed_queue(self.queue)
         if self.q_message is None:
             self.log.info('Sending new queue message')
-            self.q_message = await self.queue_webhook.send(content=q,
-                                                           wait=True)
+            self.q_message = await self.queue_webhook.send(content=q, wait=True)
         else:
             self.log.info('Updating queue message')
             self.q_message = await self.q_message.edit(content=q)
@@ -98,8 +116,9 @@ class DiscordHook:
         embeds = [await self.embed_leaderboard(self.leaderboard)]
         if self.l_message is None:
             self.log.info('Sending new leaderboard message')
-            self.l_message = await self.leaderboard_webhook.send(embeds=embeds,
-                                                                 wait=True)
+            self.l_message = await self.leaderboard_webhook.send(
+                embeds=embeds, wait=True
+            )
         else:
             self.log.info('Updating leaderboard message')
             self.l_message = await self.l_message.edit(embeds=embeds)
@@ -127,20 +146,5 @@ class DiscordHook:
             await self.q_message.delete()
         if self.l_message is not None:
             await self.l_message.delete()
-        # disconnect from discord
-        if self.leaderboard_webhook is not None:
-            await self.leaderboard_webhook.session.close()
-        if self.queue_webhook is not None:
-            await self.queue_webhook.session.close()
-
-    def __del__(self):
-        self.log.info('Cleaning up discord hook')
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-        if loop is not None and loop.is_running():
-            # inside a running loop: schedule cleanup, best-effort
-            loop.create_task(self.cleanup())
-        else:
-            asyncio.run(self.cleanup())
+        if not self.session.closed:
+            await self.session.close()

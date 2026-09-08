@@ -35,14 +35,14 @@ class TrackContext:
         try:
             prog = int(info['progress_ms'])
             return prog
-        except (KeyError, TypeError, ValueError):
+        except KeyError, TypeError, ValueError:
             raise NoCurrentTrack
 
     def _get_duration(self, info: dict) -> int:
         try:
             length = int(info['item']['duration_ms'])
             return length
-        except (KeyError, TypeError, ValueError):
+        except KeyError, TypeError, ValueError:
             raise NoCurrentTrack
 
     def _get_album_art(self, info: dict) -> str:

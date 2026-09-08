@@ -1,8 +1,10 @@
 import json
-from enum import Enum
-from utils.errors import SettingsError
 import os
+from enum import Enum
+
 import yaml
+
+from utils.errors import SettingsError
 
 SETTINGS_FILE = './data/settings.yml'
 LEGACY_SETTINGS_FILE = './data/settings.json'
@@ -21,6 +23,7 @@ class Perms(Enum):
     SUBS = 'subs'
     FOLLOWERS = 'followers'
     PRIVILEGED = 'privileged'
+    DJS = 'djs'
 
 
 class Settings:
@@ -36,7 +39,7 @@ class Settings:
             'ACTIVE': self.__active,
             'DEV_MODE': self.__dev_mode,
             'SR_PERMISSION': self.__permission.value,
-            'VETO_PASS': self.__veto_pass
+            'VETO_PASS': self.__veto_pass,
         }
         with open(SETTINGS_FILE, 'w') as s_file:
             yaml.safe_dump(settings, s_file, sort_keys=False)
@@ -65,8 +68,7 @@ class Settings:
     def set_settings(self):
         settings = self.pull_settings()
         self.set_active(bool(settings.get('ACTIVE', True)), save=False)
-        self.set_permission(settings.get('SR_PERMISSION', Perms.ALL),
-                            save=False)
+        self.set_permission(settings.get('SR_PERMISSION', Perms.ALL), save=False)
         self.set_dev_mode(bool(settings.get('DEV_MODE', False)), save=False)
         self.set_veto_pass(int(settings.get('VETO_PASS', 5)), save=False)
 
@@ -81,18 +83,16 @@ class Settings:
             self.save_settings()
 
     def set_permission(self, permission, save=True):
-        if type(permission) is Perms:
+        if isinstance(permission, Perms):
             self.__permission = permission
-            return
-
-        if type(permission) is not str:
-            raise SettingsError('Permission must be a string.')
-
-        permission = permission.lower()
-        if permission not in ['all', 'subs', 'followers', 'privileged']:
-            raise SettingsError('Permission must be either "all", \
-                                "subs", "followers" or "privileged".')
-        self.__permission = Perms(permission)
+        else:
+            if not isinstance(permission, str):
+                raise SettingsError('Permission must be a string.')
+            permission = permission.lower()
+            valid = [p.value for p in Perms]
+            if permission not in valid:
+                raise SettingsError(f'Permission must be one of {", ".join(valid)}.')
+            self.__permission = Perms(permission)
         if save:
             self.save_settings()
 
@@ -120,5 +120,7 @@ class Settings:
         return self.__veto_pass
 
     def __str__(self) -> str:
-        return (f'Active: {self.__active}, Dev mode: {self.__dev_mode}, '
-                f'Veto pass: {self.__veto_pass}')
+        return (
+            f'Active: {self.__active}, Dev mode: {self.__dev_mode}, '
+            f'Veto pass: {self.__veto_pass}'
+        )

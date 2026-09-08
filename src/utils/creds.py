@@ -1,7 +1,9 @@
+from os import getenv
+
 from dotenv import load_dotenv
+
 from utils.errors import NoCreds
 from utils.logger import Log
-from os import getenv
 
 
 def get_str_env(name: str) -> str:
@@ -81,8 +83,7 @@ class TwitchCreds:
 class DiscordCreds:
     def __init__(self):
         self.__queue_webhook = get_optional_str_env('DISCORD_QUEUE_WEBHOOK')
-        self.__leaderboard_webhook = get_optional_str_env(
-            'DISCORD_LEADERBOARD_WEBHOOK')
+        self.__leaderboard_webhook = get_optional_str_env('DISCORD_LEADERBOARD_WEBHOOK')
 
     @property
     def queue_webhook(self):
@@ -98,9 +99,11 @@ class SpotifyCreds:
         self.__client_id = get_str_env('SPOTIFY_CLIENT_ID')
         self.__client_secret = get_str_env('SPOTIFY_SECRET')
         self.__username = get_str_env('SPOTIFY_USERNAME')
-        self.scopes = 'user-modify-playback-state user-read-playback-state ' \
-            'user-read-currently-playing user-read-playback-position' \
+        self.scopes = (
+            'user-modify-playback-state user-read-playback-state '
+            'user-read-currently-playing user-read-playback-position'
             ' user-read-recently-played streaming'
+        )
 
     @property
     def client_id(self):
@@ -116,14 +119,16 @@ class SpotifyCreds:
 
 
 class Creds:
-    def __init__(self, log: Log = Log('main'),
-                 file: str = './secret/conf.env'):
+    def __init__(self, log: Log = Log('main'), file: str = './secret/conf.env'):
         self.log = log
         self.file = file
         self.load_env()
         self.twitch: TwitchCreds = TwitchCreds()
         self.discord: DiscordCreds = DiscordCreds()
         self.spotify: SpotifyCreds = SpotifyCreds()
+        # bearer token guarding mutating API routes; unset means those routes
+        # are refused (fail closed)
+        self.server_token: str | None = get_optional_str_env('SERVER_API_TOKEN')
 
     def load_env(self):
         try:

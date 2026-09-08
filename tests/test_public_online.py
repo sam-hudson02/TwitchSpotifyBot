@@ -1,13 +1,16 @@
 import unittest
-from utils.settings import Settings
-from utils.logger import Log
-from utils.db import DB
-from utils.creds import Creds
-from twitch.wrapper import Wrapper
-from twitch.bot import Bot
-from AudioController.audio_controller import AudioController, Context
+
 from mocks.mock_sock import MockSocket
 from mocks.mock_spot import MockSpot
+
+from AudioController.audio_controller import Context
+from services import Services
+from twitch.bot import Bot
+from utils.creds import Creds
+from utils.db import DB
+from utils.logger import Log
+from utils.settings import Settings
+
 # add src to path
 
 
@@ -15,7 +18,6 @@ class TestPublicOnline(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.creds = Creds()
         self.socket = MockSocket(self.creds)
-        self.wrapper = Wrapper(self.creds.twitch, self.socket)
         self.db = DB()
         await self.db.connect()
         await self.db.delete_all()
@@ -23,14 +25,20 @@ class TestPublicOnline(unittest.IsolatedAsyncioTestCase):
         await self.db.get_user(self.channel, True, True)
         self.spot = MockSpot()
         self.audio_ctx = Context()
-        log = Log('AC')
-        self.ac = AudioController(self.db, self.spot, self.audio_ctx, log)
         self.settings = Settings()
         # Song-request commands are gated behind settings.active (enabled in
         # production via !sp-on); enable it here so the online cog is testable.
         self.settings.set_active(True)
-        self.bot = Bot(self.wrapper,  self.db, self.settings,
-                       self.ac, self.creds.twitch)
+        services = Services(
+            creds=self.creds,
+            settings=self.settings,
+            db=self.db,
+            spotify=self.spot,
+            context=self.audio_ctx,
+        )
+        self.bot = Bot(services, socket=self.socket)
+        self.wrapper = self.bot.service
+        self.ac = self.bot.ac
         await self.bot.load_cogs()
         print('setup complete')
 
@@ -57,7 +65,7 @@ class TestPublicOnline(unittest.IsolatedAsyncioTestCase):
         next = await self.db.get_next_song()
         if next is None:
             self.fail('song not in db')
-        self.assertEqual(next.name, 'test')
+        self.assertEqual(next.songName, 'test')
         self.assertEqual(next.requester, self.channel)
 
         # shouldn't be able to add the same song twice
@@ -68,8 +76,9 @@ class TestPublicOnline(unittest.IsolatedAsyncioTestCase):
 
         # add 'test2' to the queue using url from new account
         author = 'someuser'
-        self.socket.from_twitch('!sr https://open.spotify.com/track/test2',
-                                author, self.channel)
+        self.socket.from_twitch(
+            '!sr https://open.spotify.com/track/test2', author, self.channel
+        )
         await self.wrapper.read()
         expected = f'@{author} test2 by test2 has been added to the queue!'
         self.assertEqual(self.socket.get_last(), expected)
@@ -84,7 +93,7 @@ class TestPublicOnline(unittest.IsolatedAsyncioTestCase):
         next = await self.db.get_next_song()
         if next is None:
             self.fail('song not in db')
-        self.assertEqual(next.name, 'test')
+        self.assertEqual(next.songName, 'test')
         self.assertEqual(next.requester, self.channel)
 
     async def dbRefresh(self):
@@ -136,7 +145,7 @@ class TestPublicOnline(unittest.IsolatedAsyncioTestCase):
         author = 'someuser'
         self.socket.from_twitch('!rate', author, self.channel)
         await self.wrapper.read()
-        expected = f'@{author} has rated @{self.channel}\'s song'
+        expected = f"@{author} has rated @{self.channel}'s song"
         self.assertEqual(self.socket.get_last(), expected)
 
         # check rate has been added to db
@@ -148,8 +157,30 @@ class TestPublicOnline(unittest.IsolatedAsyncioTestCase):
         # requester can't rate their own song
         self.socket.from_twitch('!rate', self.channel, self.channel)
         await self.wrapper.read()
-        expected = f'@{self.channel} You can\'t rate your own song! LUL'
+        expected = f"@{self.channel} You can't rate your own song! LUL"
         self.assertEqual(self.socket.get_last(), expected)
+
+    async def testRateNoRequester(self):
+        await self.dbRefresh()
+        self.socket.from_twitch('!dev-on', self.channel, self.channel)
+
+        # a song is playing but its requester was never resolved (None). The
+        # old test masked this by setting context.requester manually; live, it
+        # is None until set_requester runs, which produced "@None" rates.
+        self.spot.set_current('test')
+        await self.ac.update_context()
+        self.assertIsNone(self.ac.context.requester)
+
+        author = 'someuser'
+        self.socket.from_twitch('!rate', author, self.channel)
+        await self.wrapper.read()
+        expected = f"@{author} There's no requester to like for the current song!"
+        self.assertEqual(self.socket.get_last(), expected)
+
+        # no phantom "None" user, and no stray rate credited
+        usernames = [u.username for u in await self.db.get_all_users()]
+        self.assertNotIn('None', usernames)
+        self.assertNotIn(None, usernames)
 
     async def testRemove(self):
         await self.dbRefresh()

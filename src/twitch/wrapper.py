@@ -1,20 +1,25 @@
 import asyncio
-from utils.creds import TwitchCreds
-from utils.twitch_token import TwitchToken
-from typing import Awaitable, Callable, Optional
-import socket
 import random
-from twitch.message import Message
+import socket
 import threading as th
-from utils.logger import Log
+from typing import Awaitable, Callable, Optional
+
 import aiohttp
+
+from twitch.message import Message
+from utils.creds import TwitchCreds
+from utils.logger import Log
+from utils.twitch_token import TwitchToken
 
 
 class Wrapper:
-    def __init__(self, creds: TwitchCreds,
-                 sock: Optional[socket.socket] = None,
-                 token: Optional[TwitchToken] = None,
-                 read_sock: Optional[socket.socket] = None):
+    def __init__(
+        self,
+        creds: TwitchCreds,
+        sock: Optional[socket.socket] = None,
+        token: Optional[TwitchToken] = None,
+        read_sock: Optional[socket.socket] = None,
+    ):
         self.token = token or TwitchToken(creds)
         self.api = API(creds, self.token)
         self.log = Log('Socket')
@@ -30,6 +35,7 @@ class Wrapper:
         # user's own messages back to their authenticated session, so an
         # anonymous reader is needed to see messages from the bot's own account.
         self.read_sock: Optional[socket.socket] = read_sock or sock
+        self._listen_task: Optional[asyncio.Task] = None
 
     async def empty(self, *args, **kwargs):
         pass
@@ -41,16 +47,17 @@ class Wrapper:
                 self.send_sock = socket.socket()
             if self.read_sock is None:
                 self.read_sock = socket.socket()
-            self.log.info(f"Connecting to {self.server}:{self.port}")
+            self.log.info(f'Connecting to {self.server}:{self.port}')
 
             # authenticated connection: sends messages as the bot account
             self.send_sock.connect((self.server, self.port))
-            self.send_sock.send('CAP REQ :twitch.tv/membership twitch.tv/tags\n'
-                                .encode("utf-8"))
-            self.send_sock.send(f"PASS oauth:{token}\n".encode("utf-8"))
-            self.send_sock.send(f"NICK {self.creds.bot_name}\n".encode("utf-8"))
-            self.send_sock.send(f"JOIN #{self.creds.channel}\n".encode("utf-8"))
-            resp = self.send_sock.recv(2048).decode("utf-8")
+            self.send_sock.send(
+                'CAP REQ :twitch.tv/membership twitch.tv/tags\n'.encode('utf-8')
+            )
+            self.send_sock.send(f'PASS oauth:{token}\n'.encode('utf-8'))
+            self.send_sock.send(f'NICK {self.creds.bot_name}\n'.encode('utf-8'))
+            self.send_sock.send(f'JOIN #{self.creds.channel}\n'.encode('utf-8'))
+            resp = self.send_sock.recv(2048).decode('utf-8')
             if 'Login authentication failed' in resp:
                 # token was rejected: refresh it and let the retry loop reconnect
                 self.log.error('Twitch rejected the access token, refreshing')
@@ -59,26 +66,29 @@ class Wrapper:
 
             # anonymous connection: reads all chat, including messages sent from
             # the bot's own account (which Twitch will not echo to send_sock)
-            anon_nick = f"justinfan{random.randint(10000, 99999)}"
+            anon_nick = f'justinfan{random.randint(10000, 99999)}'
             self.read_sock.connect((self.server, self.port))
-            self.read_sock.send('CAP REQ :twitch.tv/membership twitch.tv/tags\n'
-                                .encode("utf-8"))
-            self.read_sock.send(f"NICK {anon_nick}\n".encode("utf-8"))
-            self.read_sock.send(f"JOIN #{self.creds.channel}\n".encode("utf-8"))
+            self.read_sock.send(
+                'CAP REQ :twitch.tv/membership twitch.tv/tags\n'.encode('utf-8')
+            )
+            self.read_sock.send(f'NICK {anon_nick}\n'.encode('utf-8'))
+            self.read_sock.send(f'JOIN #{self.creds.channel}\n'.encode('utf-8'))
             self.read_sock.recv(2048)
 
             self.log.info('Socket connected')
             await self._on_join(self.creds.channel)
         except Exception as err:
             self._close_sockets()
-            self.log.error(f"Error connecting to socket: {err}")
-            await asyncio.sleep(1.5 ** tries)
+            self.log.error(f'Error connecting to socket: {err}')
+            await asyncio.sleep(1.5**tries)
             if tries < 5:
-                self.log.info(f"Retrying connection {tries + 1}/5")
+                self.log.info(f'Retrying connection {tries + 1}/5')
                 await self.connect(tries + 1)
             else:
-                self.log.critical('Max retries reached, giving up on the \
-                                  Twitch connection')
+                self.log.critical(
+                    'Max retries reached, giving up on the \
+                                  Twitch connection'
+                )
                 raise ConnectionError('Could not connect to Twitch IRC')
 
     def _close_sockets(self):
@@ -96,27 +106,26 @@ class Wrapper:
         if self.send_sock is not None:
             self.log.info('Disconnecting socket')
             try:
-                self.send_sock.send(
-                    f"PART #{self.creds.channel}\n".encode("utf-8"))
+                self.send_sock.send(f'PART #{self.creds.channel}\n'.encode('utf-8'))
             except Exception as e:
                 self.log.error(f'Error sending PART: {e}')
         self._close_sockets()
 
     async def cleanup(self):
+        if self._listen_task is not None:
+            self._listen_task.cancel()
+            self._listen_task = None
         self.disconnect()
         await self.api.close()
 
     async def start(self):
         await self.connect()
-        th.Thread(target=self.run_listen).start()
+        # listen on the running loop so message handling (DB, token, HTTP) stays
+        # on the same loop everything else is bound to; only the blocking socket
+        # recv is offloaded (see read()).
+        self._listen_task = asyncio.create_task(self.listen())
         # keep the authenticated (send) connection alive by answering its PINGs
-        th.Thread(target=self._keepalive_loop).start()
-
-    def run_listen(self):
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.create_task(self.listen())
-        loop.run_forever()
+        th.Thread(target=self._keepalive_loop, daemon=True).start()
 
     def _keepalive_loop(self):
         # the send connection never routes messages (they arrive on read_sock),
@@ -125,9 +134,9 @@ class Wrapper:
             try:
                 if self.send_sock is None:
                     return
-                resp = self.send_sock.recv(2048).decode("utf-8")
-                if resp.startswith("PING"):
-                    self.send_sock.send("PONG\n".encode("utf-8"))
+                resp = self.send_sock.recv(2048).decode('utf-8')
+                if resp.startswith('PING'):
+                    self.send_sock.send('PONG\n'.encode('utf-8'))
             except Exception as e:
                 self.log.error(f'Send socket error: {e}')
                 return
@@ -135,8 +144,9 @@ class Wrapper:
     async def send(self, message: str):
         if self.send_sock is None:
             return
-        self.send_sock.send(f"PRIVMSG #{self.creds.channel} :{message}\n"
-                            .encode("utf-8"))
+        self.send_sock.send(
+            f'PRIVMSG #{self.creds.channel} :{message}\n'.encode('utf-8')
+        )
 
     def on_join(self, func: Callable[[str], Awaitable[None]]):
         self._on_join = func
@@ -151,21 +161,24 @@ class Wrapper:
         self._on_offline = func
 
     def is_message(self, resp: str) -> bool:
-        return resp.startswith("@") and " PRIVMSG " in resp
+        return resp.startswith('@') and ' PRIVMSG ' in resp
 
     async def read(self):
         if self.read_sock is None:
             return
-        data = self.read_sock.recv(2048).decode("utf-8")
-        for line in data.split("\r\n"):
+        # recv blocks, so run it in a worker thread; the handlers it feeds then
+        # run back on the event loop (where the DB/token/HTTP clients live)
+        raw = await asyncio.to_thread(self.read_sock.recv, 2048)
+        data = raw.decode('utf-8')
+        for line in data.split('\r\n'):
             await self._handle_line(line)
 
     async def _handle_line(self, line: str):
         if not line:
             return
-        if line.startswith("PING"):
+        if line.startswith('PING'):
             if self.read_sock is not None:
-                self.read_sock.send("PONG\n".encode("utf-8"))
+                self.read_sock.send('PONG\n'.encode('utf-8'))
             return
         if not self.is_message(line):
             return
@@ -192,10 +205,14 @@ class API:
         self.channel: str = creds.channel
         self._channel_id: Optional[str] = None
 
-    async def do_call(self, endpoint: str, params: Optional[dict] = None,
-                      headers: Optional[dict] = None,
-                      base_url: Optional[str] = None,
-                      retried: bool = False):
+    async def do_call(
+        self,
+        endpoint: str,
+        params: Optional[dict] = None,
+        headers: Optional[dict] = None,
+        base_url: Optional[str] = None,
+        retried: bool = False,
+    ):
         try:
             if base_url is None:
                 base_url = self.base_url
@@ -204,14 +221,14 @@ class API:
                 params = {}
             if headers is None:
                 headers = await self.headers()
-            resp = await self.session.get(url, headers=headers,
-                                          params=params)
+            resp = await self.session.get(url, headers=headers, params=params)
             if resp.status == 401 and not retried:
                 # the access token was rejected: refresh and retry once
                 self.log.info('Helix returned 401, refreshing access token')
                 await self.token.get(force=True)
-                return await self.do_call(endpoint, params=params,
-                                          base_url=base_url, retried=True)
+                return await self.do_call(
+                    endpoint, params=params, base_url=base_url, retried=True
+                )
             if resp.status != 200:
                 err = await resp.json()
                 self.log.error(f'Error calling {endpoint}: {err["message"]}')

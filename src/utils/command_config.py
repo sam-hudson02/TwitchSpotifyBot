@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from typing import Any
+
 import yaml
 
 
@@ -32,8 +33,11 @@ class CommandConfig:
     def _merge(self, base: dict, override: dict) -> dict:
         result = dict(base)
         for key, value in override.items():
-            if (key in result and isinstance(result[key], dict)
-                    and isinstance(value, dict)):
+            if (
+                key in result
+                and isinstance(result[key], dict)
+                and isinstance(value, dict)
+            ):
                 result[key] = self._merge(result[key], value)
             else:
                 result[key] = value
@@ -49,6 +53,12 @@ class CommandConfig:
     def enabled(self, command: str) -> bool:
         return bool(self._command(command).get('enabled', True))
 
+    @property
+    def prefixes(self) -> list[str]:
+        pre = self._config.get('PREFIX', ['!'])
+        print(f'Prefixes: {pre}')
+        return pre
+
     def message(self, command: str, key: str, **params: Any) -> str:
         safe = _SafeDict(params)
         user = self._command(command).get('messages', {}).get(key)
@@ -58,6 +68,6 @@ class CommandConfig:
                 continue
             try:
                 return str(template).format_map(safe)
-            except (ValueError, IndexError):
+            except ValueError, IndexError:
                 continue
         return ''

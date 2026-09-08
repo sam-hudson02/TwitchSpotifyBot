@@ -17,5 +17,5 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - ./secret:/Sbotify/secret   # conf.env and the cached Spotify token
-      - ./data:/Sbotify/data       # sqlite database, logs and settings.yml
+      - ./secret:/Sbotify/secret # conf.env and the cached Spotify token
+      - ./data:/Sbotify/data # sqlite database, logs and settings.yml

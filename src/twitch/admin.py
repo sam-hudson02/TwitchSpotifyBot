@@ -1,14 +1,17 @@
-from utils.errors import NotAuthorized
-from utils import target_finder, Settings, DB
+from typing import TYPE_CHECKING
+
 from twitch.cog import Cog
 from twitch.router import Context
-from typing import TYPE_CHECKING
+from utils import DB, Settings, target_finder
+from utils.errors import NotAuthorized
+from utils.twitch_utils import is_moderator
+
 if TYPE_CHECKING:
     from twitch.bot import Bot as TwitchBot
 
 
 class AdminCog(Cog):
-    def __init__(self, bot: "TwitchBot"):
+    def __init__(self, bot: 'TwitchBot'):
         self.bot = bot
         self.db: DB = bot.db
         self.ac = bot.ac
@@ -17,14 +20,14 @@ class AdminCog(Cog):
         self.commands = bot.commands
 
     async def before_invoke(self, ctx: Context) -> bool:
-        if not ctx.user.mod:
+        if not await is_moderator(ctx.chatter, ctx.user):
             raise NotAuthorized(clearance_required='mod')
         return True
 
     async def load(self):
         self.register('SET_VETO', self.set_veto_pass)
-        self.register('ADD_MOD', self.add_mod)
-        self.register('REMOVE_MOD', self.remove_mod)
+        self.register('ADD_DJ', self.add_dj)
+        self.register('REMOVE_DJ', self.remove_dj)
         self.register('SR_ON', self.sp_on)
         self.register('SR_OFF', self.sp_off)
         self.register('LEADERBOARD_RESET', self.leaderboard_reset)
@@ -39,8 +42,9 @@ class AdminCog(Cog):
                 await ctx.reply(self.commands.message('SET_VETO', 'too_low'))
             else:
                 self.settings.set_veto_pass(int(ctx.content))
-                await ctx.reply(self.commands.message('SET_VETO', 'set',
-                                                      veto_pass=new_veto_pass))
+                await ctx.reply(
+                    self.commands.message('SET_VETO', 'set', veto_pass=new_veto_pass)
+                )
         except ValueError:
             await ctx.reply(self.commands.message('SET_VETO', 'not_a_number'))
 
@@ -51,27 +55,28 @@ class AdminCog(Cog):
     def set_live(self, live: bool):
         self.ac.context.live = live
 
-    async def add_mod(self, ctx: Context):
+    async def add_dj(self, ctx: Context):
         target = target_finder(ctx.content)
 
-        await self.db.mod_user(target)
-        await ctx.reply(self.commands.message('ADD_MOD', 'modded',
-                                              target=target))
+        await self.db.dj_user(target)
+        await ctx.reply(self.commands.message('ADD_DJ', 'djed', target=target))
 
-    async def remove_mod(self, ctx: Context):
+    async def remove_dj(self, ctx: Context):
         target = target_finder(ctx.content)
 
-        await self.db.unmod_user(target)
-        await ctx.reply(self.commands.message('REMOVE_MOD', 'unmodded',
-                                              target=target))
+        await self.db.undj_user(target)
+        await ctx.reply(self.commands.message('REMOVE_DJ', 'undjed', target=target))
 
     async def sp_on(self, ctx: Context):
         if not self.settings.active:
             self.set_active(True)
             await ctx.reply(self.commands.message('SR_ON', 'on'))
         elif self.ac.context.live:
-            await ctx.reply(self.commands.message('SR_ON', 'already_on_not_live',
-                                                  channel=self.channel))
+            await ctx.reply(
+                self.commands.message(
+                    'SR_ON', 'already_on_not_live', channel=self.channel
+                )
+            )
         else:
             await ctx.reply(self.commands.message('SR_ON', 'already_on'))
 
@@ -91,9 +96,13 @@ class AdminCog(Cog):
         await ctx.reply(self.commands.message('CLEAR', 'cleared'))
 
     async def dev_on(self, ctx: Context):
+        if not ctx.user.admin:
+            raise NotAuthorized(clearance_required='admin')
         self.settings.set_dev_mode(True)
         await ctx.reply(self.commands.message('DEV_ON', 'on'))
 
     async def dev_off(self, ctx: Context):
+        if not ctx.user.admin:
+            raise NotAuthorized(clearance_required='admin')
         self.settings.set_dev_mode(False)
         await ctx.reply(self.commands.message('DEV_OFF', 'off'))
