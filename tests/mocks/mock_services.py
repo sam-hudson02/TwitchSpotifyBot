@@ -70,10 +70,17 @@ class MockDB:
         self.connected = False
 
 
-def queue_row(id, position, name='song', artist='artist', requester='user',
-              url='http://track'):
-    return SimpleNamespace(id=id, position=position, songName=name,
-                           artist=artist, requester=requester, url=url)
+def queue_row(
+    id, position, name='song', artist='artist', requester='user', url='http://track'
+):
+    return SimpleNamespace(
+        id=id,
+        position=position,
+        songName=name,
+        artist=artist,
+        requester=requester,
+        url=url,
+    )
 
 
 class MockQueueDB(MockDB):
@@ -97,8 +104,15 @@ class MockQueueDB(MockDB):
 
 
 def user_row(username, ban=False, dj=False, admin=False, requests=0, rates=0):
-    return SimpleNamespace(username=username, ban=ban, dj=dj, admin=admin,
-                           requests=requests, rates=rates, ratesGiven=0)
+    return SimpleNamespace(
+        username=username,
+        ban=ban,
+        dj=dj,
+        admin=admin,
+        requests=requests,
+        rates=rates,
+        ratesGiven=0,
+    )
 
 
 class MockUserDB(MockDB):
@@ -127,15 +141,21 @@ class MockUserDB(MockDB):
         (await self.get_user(username)).dj = False
 
 
-def mock_creds(channel='chan', bot_name='bot', queue_webhook='http://queue',
-               leaderboard_webhook=None, server_token='token'):
+def mock_creds(
+    channel='chan',
+    bot_name='bot',
+    queue_webhook='http://queue',
+    leaderboard_webhook=None,
+    server_token='token',
+):
     return SimpleNamespace(
-        twitch=SimpleNamespace(channel=channel, bot_name=bot_name,
-                               access_token='at', refresh_token='rt'),
-        discord=SimpleNamespace(queue_webhook=queue_webhook,
-                                leaderboard_webhook=leaderboard_webhook),
-        spotify=SimpleNamespace(username='user', client_id='cid',
-                                client_secret='sec'),
+        twitch=SimpleNamespace(
+            channel=channel, bot_name=bot_name, access_token='at', refresh_token='rt'
+        ),
+        discord=SimpleNamespace(
+            queue_webhook=queue_webhook, leaderboard_webhook=leaderboard_webhook
+        ),
+        spotify=SimpleNamespace(username='user', client_id='cid', client_secret='sec'),
         server_token=server_token,
     )
 

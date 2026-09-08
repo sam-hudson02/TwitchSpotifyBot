@@ -1,5 +1,5 @@
-from fastapi import Request, Depends, HTTPException, Security
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends, HTTPException, Request, Security
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from server.auth import check_token
 from server.state import AppState
@@ -17,9 +17,10 @@ def require_auth(
 ) -> None:
     configured = state.creds.server_token
     if not configured:
-        raise HTTPException(status_code=503,
-                            detail='Server auth is not configured; set '
-                                   'SERVER_API_TOKEN')
+        raise HTTPException(
+            status_code=503,
+            detail='Server auth is not configured; set SERVER_API_TOKEN',
+        )
     if credentials is None or not credentials.credentials:
         raise HTTPException(status_code=401, detail='Missing bearer token')
     if not check_token(configured, credentials.credentials):

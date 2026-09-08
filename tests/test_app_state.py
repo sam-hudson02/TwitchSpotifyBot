@@ -1,24 +1,41 @@
 import unittest
 from functools import partial
 
-from utils.logger import Log
+from mocks.mock_services import (
+    MockDB,
+    MockDiscordBot,
+    MockQueueDB,
+    MockSpotify,
+    MockTwitchBot,
+    mock_creds,
+    mock_services,
+    queue_row,
+)
+
 from server.state import AppState
-from mocks.mock_services import (MockSpotify, MockTwitchBot, MockDiscordBot,
-                                 MockDB, MockQueueDB, queue_row, mock_creds,
-                                 mock_services)
+from utils.logger import Log
 
 
-def build_state(*, spotify_connected=True, twitch_start_ok=True,
-                discord_start_ok=True, twitch_factory=None, creds=None,
-                db=None):
+def build_state(
+    *,
+    spotify_connected=True,
+    twitch_start_ok=True,
+    discord_start_ok=True,
+    twitch_factory=None,
+    creds=None,
+    db=None,
+):
     db = db if db is not None else MockDB()
-    services = mock_services(spotify=MockSpotify(connected=spotify_connected),
-                             creds=creds or mock_creds(), db=db)
+    services = mock_services(
+        spotify=MockSpotify(connected=spotify_connected),
+        creds=creds or mock_creds(),
+        db=db,
+    )
     state = AppState(
         log=Log('test'),
         services=services,
-        twitch_factory=twitch_factory or partial(MockTwitchBot,
-                                                  start_ok=twitch_start_ok),
+        twitch_factory=twitch_factory
+        or partial(MockTwitchBot, start_ok=twitch_start_ok),
         discord_factory=partial(MockDiscordBot, start_ok=discord_start_ok),
     )
     return state, db
@@ -91,8 +108,9 @@ class TestAppState(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(state.discord_running)
 
     async def test_discord_requires_webhooks(self):
-        state, _ = build_state(creds=mock_creds(queue_webhook=None,
-                                                leaderboard_webhook=None))
+        state, _ = build_state(
+            creds=mock_creds(queue_webhook=None, leaderboard_webhook=None)
+        )
         ok, message = await state.start_discord()
         self.assertFalse(ok)
         self.assertEqual(message, 'No Discord webhooks configured')
@@ -154,6 +172,7 @@ class TestAppState(unittest.IsolatedAsyncioTestCase):
 
     async def test_now_playing_returns_context(self):
         from types import SimpleNamespace
+
         state, _ = build_state()
         snapshot = {'track': 'song', 'artist': 'artist', 'requester': 'user'}
         state.services.context = SimpleNamespace(get_context=lambda: snapshot)
@@ -161,10 +180,12 @@ class TestAppState(unittest.IsolatedAsyncioTestCase):
 
     async def test_set_active_updates_settings_and_context(self):
         from types import SimpleNamespace
+
         state, _ = build_state()
         applied = []
         state.services.settings = SimpleNamespace(
-            set_active=lambda a: applied.append(a))
+            set_active=lambda a: applied.append(a)
+        )
         state.services.context = SimpleNamespace(active=True)
         state.set_active(False)
         self.assertEqual(applied, [False])

@@ -1,6 +1,4 @@
-from services.interfaces import (SpotifyInterface, TwitchInterface,
-                                 DiscordInterface)
+from services.interfaces import DiscordInterface, SpotifyInterface, TwitchInterface
 from services.services import Services
 
-__all__ = ['SpotifyInterface', 'TwitchInterface', 'DiscordInterface',
-           'Services']
+__all__ = ['SpotifyInterface', 'TwitchInterface', 'DiscordInterface', 'Services']

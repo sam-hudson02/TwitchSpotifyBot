@@ -2,8 +2,7 @@ from prisma.models import User
 
 
 class SongReq:
-    def __init__(self, name: str, artist: str,
-                 url: str, requester: str) -> None:
+    def __init__(self, name: str, artist: str, url: str, requester: str) -> None:
         self.name = name
         self.artist = artist
         self.url = url
@@ -11,10 +10,10 @@ class SongReq:
 
     def dict(self) -> dict[str, str]:
         return {
-            "name": self.name,
-            "artist": self.artist,
-            "url": self.url,
-            "requester": self.requester,
+            'name': self.name,
+            'artist': self.artist,
+            'url': self.url,
+            'requester': self.requester,
         }
 
 

@@ -3,7 +3,9 @@ import json
 import os
 import time
 from typing import Optional
+
 import aiohttp
+
 from utils.creds import TwitchCreds
 from utils.logger import Log
 
@@ -17,8 +19,12 @@ class TwitchToken:
     """Manages a Twitch user access token, refreshing it via the OAuth
     refresh-token grant and caching the (rotating) refresh token on disk."""
 
-    def __init__(self, creds: TwitchCreds, log: Optional[Log] = None,
-                 cache_path: str = './secret/.twitch-token.json'):
+    def __init__(
+        self,
+        creds: TwitchCreds,
+        log: Optional[Log] = None,
+        cache_path: str = './secret/.twitch-token.json',
+    ):
         self.creds = creds
         self.log = log or Log('TwitchToken')
         self.cache_path = cache_path
@@ -104,8 +110,9 @@ class TwitchToken:
             async with session.post(TOKEN_URL, data=payload) as resp:
                 body = await resp.json()
                 if resp.status != 200:
-                    message = body.get('message', body) \
-                        if isinstance(body, dict) else body
+                    message = (
+                        body.get('message', body) if isinstance(body, dict) else body
+                    )
                     raise RuntimeError(f'{resp.status}: {message}')
 
         self._access_token = body['access_token']

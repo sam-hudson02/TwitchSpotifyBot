@@ -1,7 +1,7 @@
 import asyncio
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import RedirectResponse, PlainTextResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse
 
 from server.deps import get_state
 from server.models import SpotifyStatus
@@ -14,16 +14,17 @@ router = APIRouter(tags=['spotify'])
 async def spotify_status(state: AppState = Depends(get_state)):
     # spotipy is blocking, so verify off the event loop
     working = await asyncio.to_thread(state.spotify.verify)
-    return SpotifyStatus(connected=state.spotify.is_connected(),
-                         working=working,
-                         user=state.creds.spotify.username)
+    return SpotifyStatus(
+        connected=state.spotify.is_connected(),
+        working=working,
+        user=state.creds.spotify.username,
+    )
 
 
 @router.get('/')
 async def index(request: Request, state: AppState = Depends(get_state)):
     if not state.spotify.is_connected():
-        return RedirectResponse(
-            state.spotify.authorize_url(str(request.base_url)))
+        return RedirectResponse(state.spotify.authorize_url(str(request.base_url)))
     await state.start_twitch()
     return PlainTextResponse('Bot is running')
 
@@ -35,6 +36,8 @@ async def callback(request: Request, state: AppState = Depends(get_state)):
     if not ok:
         return PlainTextResponse(
             'Connected to Spotify but the credentials could not be verified. '
-            'Check your Spotify app settings and try again.', status_code=400)
+            'Check your Spotify app settings and try again.',
+            status_code=400,
+        )
     await state.start_twitch()
     return PlainTextResponse('Bot is running')

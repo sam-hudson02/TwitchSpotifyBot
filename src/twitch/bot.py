@@ -23,7 +23,7 @@ class Bot(TwitchInterface):
         services: Services,
         socket: socket_module.socket | None = None,
     ):
-        self.log = Log("Twitch")
+        self.log = Log('Twitch')
         self.creds = services.creds.twitch
         self.channel: str = self.creds.channel
         self.settings = services.settings
@@ -36,9 +36,9 @@ class Bot(TwitchInterface):
         self.commands: CommandConfig = CommandConfig()
         self.prefixes: list[str] = self.commands.prefixes
         self.ac: AudioController = AudioController(
-            self.db, services.spotify, self.context, Log("AudioController")
+            self.db, services.spotify, self.context, Log('AudioController')
         )
-        self.cogs: list["Cog"] = [
+        self.cogs: list['Cog'] = [
             OnlineCog(self),
             OfflineCog(self),
             ModCog(self),
@@ -59,7 +59,7 @@ class Bot(TwitchInterface):
         return self.context.live
 
     async def start(self) -> None:
-        self.log.info("Starting Twitch bot")
+        self.log.info('Starting Twitch bot')
         await self.db.admin_user(self.channel.lower())
         await self.load_cogs()
         await self.service.start()
@@ -67,39 +67,39 @@ class Bot(TwitchInterface):
         self._running = True
 
     async def stop(self) -> None:
-        self.log.info("Stopping service")
+        self.log.info('Stopping service')
         await self.service.cleanup()
-        self.log.info("Stopping routines")
-        if hasattr(self, "check_live_routine"):
+        self.log.info('Stopping routines')
+        if hasattr(self, 'check_live_routine'):
             self.check_live_routine.cancel()
-        if hasattr(self, "ac_update_routine"):
+        if hasattr(self, 'ac_update_routine'):
             self.ac_update_routine.cancel()
         self._running = False
 
     async def on_join(self, channel: str) -> None:
-        self.log.info(f"Joined channel: {channel}")
-        await self.service.send(self.commands.message("GENERAL", "online"))
+        self.log.info(f'Joined channel: {channel}')
+        await self.service.send(self.commands.message('GENERAL', 'online'))
 
     async def on_message(self, msg: Message) -> None:
         try:
             for prefix in self.prefixes:
                 if msg.content.startswith(prefix):
-                    command = msg.content[len(prefix) :].split(" ")[0]
+                    command = msg.content[len(prefix) :].split(' ')[0]
                     await self.router.handle(msg, command)
                     break
         except Exception as e:
             await self.on_error(msg, e)
 
     async def on_live(self):
-        self.log.info(f"{self.channel} is live!")
+        self.log.info(f'{self.channel} is live!')
 
     async def load_cogs(self):
         for cog in self.cogs:
             await cog.load()
 
     async def on_error(self, msg: Message, error: Exception):
-        self.log.error(f"Error: {error}")
-        await msg.reply(self.commands.message("GENERAL", "error"))
+        self.log.error(f'Error: {error}')
+        await msg.reply(self.commands.message('GENERAL', 'error'))
 
     async def check_live(self):
         while True:
@@ -107,10 +107,10 @@ class Bot(TwitchInterface):
             if self.settings.dev_mode:
                 live = True
             if live and not self.ac.context.live:
-                self.log.info(f"{self.channel} is live!")
+                self.log.info(f'{self.channel} is live!')
                 self.ac.context.live = True
             elif not live and self.ac.context.live:
-                self.log.info(f"{self.channel} is offline!")
+                self.log.info(f'{self.channel} is offline!')
                 self.ac.context.live = False
             await asyncio.sleep(10)
 

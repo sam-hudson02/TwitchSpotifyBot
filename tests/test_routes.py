@@ -2,15 +2,21 @@ import unittest
 from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
+from mocks.mock_services import (
+    MockQueueDB,
+    MockTwitchBot,
+    MockUserDB,
+    mock_creds,
+    mock_services,
+    queue_row,
+    user_row,
+)
 
 import server.app as A
 from server.deps import get_state
 from server.state import AppState
-from utils.logger import Log
 from utils.errors import SettingsError
-from mocks.mock_services import (mock_services, mock_creds, MockQueueDB,
-                                 queue_row, MockTwitchBot, MockUserDB,
-                                 user_row)
+from utils.logger import Log
 
 AUTH = {'Authorization': 'Bearer secret'}
 
@@ -55,13 +61,17 @@ class FakeSettings:
 
 class TestRoutes(unittest.TestCase):
     def setUp(self):
-        services = mock_services(creds=mock_creds(server_token='secret'),
-                                 db=MockQueueDB([queue_row(1, 1.0)]))
+        services = mock_services(
+            creds=mock_creds(server_token='secret'), db=MockQueueDB([queue_row(1, 1.0)])
+        )
         services.settings = FakeSettings()
         services.context = SimpleNamespace(active=True)
-        self.state = AppState(log=Log('test'), services=services,
-                              twitch_factory=MockTwitchBot,
-                              discord_factory=MockTwitchBot)
+        self.state = AppState(
+            log=Log('test'),
+            services=services,
+            twitch_factory=MockTwitchBot,
+            discord_factory=MockTwitchBot,
+        )
         A.app.dependency_overrides[get_state] = lambda: self.state
         self.client = TestClient(A.app)  # no `with`: skip lifespan/startup
 
@@ -80,29 +90,31 @@ class TestRoutes(unittest.TestCase):
 
     def test_get_settings(self):
         body = self.client.get('/settings').json()
-        self.assertEqual(body, {'active': True, 'dev_mode': False,
-                                'sr_permission': 'all', 'veto_pass': 5})
+        self.assertEqual(
+            body,
+            {'active': True, 'dev_mode': False, 'sr_permission': 'all', 'veto_pass': 5},
+        )
 
     def test_put_settings_partial(self):
-        r = self.client.put('/settings',
-                            json={'sr_permission': 'djs', 'veto_pass': 8},
-                            headers=AUTH)
+        r = self.client.put(
+            '/settings', json={'sr_permission': 'djs', 'veto_pass': 8}, headers=AUTH
+        )
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()['sr_permission'], 'djs')
         self.assertEqual(r.json()['veto_pass'], 8)
         self.assertTrue(r.json()['active'])  # untouched
 
     def test_put_settings_requires_auth(self):
-        self.assertEqual(self.client.put('/settings',
-                                        json={'active': False}).status_code, 401)
+        self.assertEqual(
+            self.client.put('/settings', json={'active': False}).status_code, 401
+        )
 
     def test_put_settings_validation_error(self):
         r = self.client.put('/settings', json={'veto_pass': 1}, headers=AUTH)
         self.assertEqual(r.status_code, 400)
 
     def test_put_twitch_active(self):
-        r = self.client.put('/twitch/active', json={'active': False},
-                            headers=AUTH)
+        r = self.client.put('/twitch/active', json={'active': False}, headers=AUTH)
         self.assertEqual(r.status_code, 200)
         self.assertFalse(r.json()['active'])
         self.assertFalse(self.state.services.context.active)
@@ -112,24 +124,29 @@ class TestRoutes(unittest.TestCase):
         self.assertEqual(r.headers.get('access-control-allow-origin'), '*')
 
     def test_cors_preflight(self):
-        r = self.client.options('/settings', headers={
-            'Origin': 'http://dash.local',
-            'Access-Control-Request-Method': 'PUT'})
+        r = self.client.options(
+            '/settings',
+            headers={
+                'Origin': 'http://dash.local',
+                'Access-Control-Request-Method': 'PUT',
+            },
+        )
         self.assertEqual(r.status_code, 200)
         self.assertIn('access-control-allow-origin', r.headers)
 
 
 class TestUserRoutes(unittest.TestCase):
     def setUp(self):
-        self.db = MockUserDB([user_row('alice'),
-                              user_row('bob', ban=True)])
-        services = mock_services(creds=mock_creds(server_token='secret'),
-                                 db=self.db)
+        self.db = MockUserDB([user_row('alice'), user_row('bob', ban=True)])
+        services = mock_services(creds=mock_creds(server_token='secret'), db=self.db)
         services.settings = FakeSettings()
         services.context = SimpleNamespace(active=True)
-        self.state = AppState(log=Log('test'), services=services,
-                              twitch_factory=MockTwitchBot,
-                              discord_factory=MockTwitchBot)
+        self.state = AppState(
+            log=Log('test'),
+            services=services,
+            twitch_factory=MockTwitchBot,
+            discord_factory=MockTwitchBot,
+        )
         A.app.dependency_overrides[get_state] = lambda: self.state
         self.client = TestClient(A.app)
 
@@ -145,10 +162,10 @@ class TestUserRoutes(unittest.TestCase):
         self.assertEqual({u['username'] for u in r.json()}, {'alice', 'bob'})
 
     def test_ban_and_unban(self):
-        self.assertTrue(self.client.put('/users/alice/ban',
-                                        headers=AUTH).json()['ban'])
-        self.assertFalse(self.client.put('/users/bob/unban',
-                                         headers=AUTH).json()['ban'])
+        self.assertTrue(self.client.put('/users/alice/ban', headers=AUTH).json()['ban'])
+        self.assertFalse(
+            self.client.put('/users/bob/unban', headers=AUTH).json()['ban']
+        )
 
     def test_make_dj_creates_missing_user(self):
         r = self.client.put('/users/carol/dj', headers=AUTH)

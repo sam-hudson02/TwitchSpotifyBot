@@ -22,12 +22,13 @@ dependencies = [
 [tool.uv]
 package = false
 
+[tool.ruff.format]
+quote-style = "single"
+
 [tool.pyright]
-# uv creates the virtualenv here; point pyright at it so third-party imports
-# (discord, spotipy, fastapi, prisma, ...) resolve.
 venvPath = "."
 venv = ".venv"
-# the code uses flat imports (e.g. `from utils import ...`) that rely on src/ and
-# tests/ being source roots.
+# code uses flat imports (e.g. `from utils import ...`) that
+# rely on src/ and tests/ being source roots.
 extraPaths = ["src", "tests"]
 pythonVersion = "3.14"

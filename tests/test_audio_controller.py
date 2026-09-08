@@ -79,8 +79,11 @@ class TestPlayNextSkip(unittest.IsolatedAsyncioTestCase):
         ac.requester_poll_interval = 0
         # Spotify reports the previous track twice, then the new one
         spot.playback_seq = ['old', 'old', 'newid']
-        song = SimpleNamespace(url='https://open.spotify.com/track/newid',
-                               requester='alice', songName='song')
+        song = SimpleNamespace(
+            url='https://open.spotify.com/track/newid',
+            requester='alice',
+            songName='song',
+        )
         await ac.set_requester(song)
         self.assertEqual(ctx.requester, 'alice')
         self.assertTrue(ctx.playing_queue)
@@ -92,8 +95,11 @@ class TestPlayNextSkip(unittest.IsolatedAsyncioTestCase):
         ac.requester_poll_attempts = 3
         # Spotify never reports the requested track
         spot.playback_seq = ['old', 'old', 'old', 'old']
-        song = SimpleNamespace(url='https://open.spotify.com/track/newid',
-                               requester='alice', songName='song')
+        song = SimpleNamespace(
+            url='https://open.spotify.com/track/newid',
+            requester='alice',
+            songName='song',
+        )
         await ac.set_requester(song)
         self.assertIsNone(ctx.requester)
 

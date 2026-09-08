@@ -1,10 +1,13 @@
+from typing import TYPE_CHECKING, Awaitable, Callable, Optional
+
 from prisma.models import User
+
 from twitch.wrapper import Message
-from typing import Callable, Awaitable, Optional, TYPE_CHECKING
+
 if TYPE_CHECKING:
-    from utils.logger import Log
-    from twitch.cog import Cog
     from twitch.bot import Bot
+    from twitch.cog import Cog
+    from utils.logger import Log
 
 
 class Context:
@@ -22,7 +25,7 @@ class Context:
         await self.msg.reply(msg)
 
     def _get_content(self):
-        return self.msg.content[len(self.command) + 1:].strip()
+        return self.msg.content[len(self.command) + 1 :].strip()
 
     async def send(self, msg: str):
         self.log.resp(msg)
@@ -30,8 +33,12 @@ class Context:
 
 
 class Command:
-    def __init__(self, cog: Optional['Cog'], command: str,
-                 func: Callable[[Context], Awaitable[None]]):
+    def __init__(
+        self,
+        cog: Optional['Cog'],
+        command: str,
+        func: Callable[[Context], Awaitable[None]],
+    ):
         self.command: str = command
         self.func: Callable[[Context], Awaitable[None]] = func
         self.cog: Optional['Cog'] = cog
@@ -56,8 +63,9 @@ class Router:
         else:
             await self.run_command(command_obj.func, ctx)
 
-    async def run_cog_command(self, func: Callable[[Context], Awaitable[None]],
-                              cog: 'Cog', ctx: Context):
+    async def run_cog_command(
+        self, func: Callable[[Context], Awaitable[None]], cog: 'Cog', ctx: Context
+    ):
         try:
             if not await cog.before_invoke(ctx):
                 return
@@ -67,17 +75,21 @@ class Router:
             self.log.error(e)
             await cog.on_error(ctx.msg, e)
 
-    async def run_command(self, func: Callable[[Context], Awaitable[None]],
-                          ctx: Context):
+    async def run_command(
+        self, func: Callable[[Context], Awaitable[None]], ctx: Context
+    ):
         try:
             await func(ctx)
         except Exception as e:
             self.log.error(e)
             raise e
 
-    def add_route(self, command: str,
-                  func: Callable[[Context], Awaitable[None]],
-                  cog: Optional['Cog'] = None):
+    def add_route(
+        self,
+        command: str,
+        func: Callable[[Context], Awaitable[None]],
+        cog: Optional['Cog'] = None,
+    ):
         self.routes[command] = Command(cog, command, func)
 
     def remove_route(self, command: str):

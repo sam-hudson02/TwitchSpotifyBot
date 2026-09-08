@@ -1,7 +1,9 @@
-from twitch.cog import Cog
-from utils import Settings, DB, Perms
 from typing import TYPE_CHECKING
+
+from twitch.cog import Cog
 from twitch.router import Context
+from utils import DB, Perms, Settings
+
 if TYPE_CHECKING:
     from twitch.bot import Bot as TwitchBot
 
@@ -28,8 +30,9 @@ class OfflineCog(Cog):
             if self.bot.ac.context.live:
                 resp = self.get_perm_resp()
             else:
-                resp = self.commands.message('SR_STATUS', 'on_not_live',
-                                             channel=self.bot.channel)
+                resp = self.commands.message(
+                    'SR_STATUS', 'on_not_live', channel=self.bot.channel
+                )
         else:
             resp = self.commands.message('SR_STATUS', 'off')
         await ctx.reply(resp)
@@ -49,17 +52,23 @@ class OfflineCog(Cog):
         if leader is None:
             resp = self.commands.message('LEADER', 'none')
         else:
-            resp = self.commands.message('LEADER', 'leader',
-                                         user=leader.username,
-                                         rates=leader.rates)
+            resp = self.commands.message(
+                'LEADER', 'leader', user=leader.username, rates=leader.rates
+            )
         await ctx.reply(resp)
 
     async def stats(self, ctx: Context):
-        position = await self.db.get_user_position(ctx.user.username,
-                                                   user=ctx.user)
-        await ctx.reply(self.commands.message(
-            'STATS', 'stats', position=position, rates=ctx.user.rates,
-            requests=ctx.user.requests, rates_given=ctx.user.ratesGiven))
+        position = await self.db.get_user_position(ctx.user.username, user=ctx.user)
+        await ctx.reply(
+            self.commands.message(
+                'STATS',
+                'stats',
+                position=position,
+                rates=ctx.user.rates,
+                requests=ctx.user.requests,
+                rates_given=ctx.user.ratesGiven,
+            )
+        )
 
     async def ping(self, ctx: Context):
         resp = 'Pong!'

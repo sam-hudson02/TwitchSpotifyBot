@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 from twitch.message import Message
+
 if TYPE_CHECKING:
     from twitch.bot import Bot
     from twitch.router import Context

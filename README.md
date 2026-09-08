@@ -78,7 +78,7 @@ Anything you leave out falls back to the defaults, so you only need to include t
    ```bash
    mkdir -p sbotify/secret sbotify/data && cd sbotify
    ```
-  
+
 2. Fill out credentials (see above).
 
 3. Add a `docker-compose.yml` — it only needs the published image and two mounts:

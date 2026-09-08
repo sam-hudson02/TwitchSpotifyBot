@@ -40,8 +40,7 @@ async def handle(state: AppState, data: dict) -> None:
     op = data.get('op')
     if op == 'move':
         after = data.get('after')
-        await state.queue_move(int(data['id']),
-                               None if after is None else int(after))
+        await state.queue_move(int(data['id']), None if after is None else int(after))
     elif op == 'remove':
         await state.queue_remove(int(data['id']))
     elif op == 'clear':
