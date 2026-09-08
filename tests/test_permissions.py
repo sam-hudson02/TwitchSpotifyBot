@@ -1,12 +1,14 @@
 import unittest
-from utils.twitch_utils import check_permission, is_privileged
-from utils.settings import Perms
+
 from utils.errors import BadPerms
+from utils.settings import Perms
+from utils.twitch_utils import check_permission, is_privileged
 
 
 class FakeChatter:
-    def __init__(self, broadcaster=False, sub=False, vip=False, mod=False,
-                 follower=False):
+    def __init__(
+        self, broadcaster=False, sub=False, vip=False, mod=False, follower=False
+    ):
         self.is_broadcaster = broadcaster
         self._sub = sub
         self._vip = vip
@@ -53,12 +55,10 @@ class TestCheckPermission(unittest.IsolatedAsyncioTestCase):
 
     async def test_followers_only_blocks_non_follower(self):
         with self.assertRaises(BadPerms):
-            await self.check(Perms.FOLLOWERS, FakeChatter(follower=False),
-                             FakeUser())
+            await self.check(Perms.FOLLOWERS, FakeChatter(follower=False), FakeUser())
 
     async def test_followers_only_allows_follower(self):
-        await self.check(Perms.FOLLOWERS, FakeChatter(follower=True),
-                         FakeUser())
+        await self.check(Perms.FOLLOWERS, FakeChatter(follower=True), FakeUser())
 
     async def test_privileged_blocks_regular(self):
         with self.assertRaises(BadPerms):

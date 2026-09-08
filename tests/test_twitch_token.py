@@ -3,12 +3,18 @@ import os
 import tempfile
 import time
 import unittest
+
 from utils.twitch_token import TwitchToken
 
 
 class StubCreds:
-    def __init__(self, access_token='access0', refresh_token='refresh0',
-                 client_id='cid', client_secret=None):
+    def __init__(
+        self,
+        access_token='access0',
+        refresh_token='refresh0',
+        client_id='cid',
+        client_secret=None,
+    ):
         self.access_token = access_token
         self.refresh_token = refresh_token
         self.client_id = client_id
@@ -50,12 +56,17 @@ class TestTwitchTokenLogic(unittest.TestCase):
         fd, path = tempfile.mkstemp(suffix='.json')
         os.close(fd)
         with open(path, 'w') as f:
-            json.dump({'access_token': 'cached_a',
-                       'refresh_token': 'cached_r',
-                       'expires_at': 123.0}, f)
-        token = TwitchToken(StubCreds(access_token='env_a',
-                                      refresh_token='env_r'),
-                            cache_path=path)
+            json.dump(
+                {
+                    'access_token': 'cached_a',
+                    'refresh_token': 'cached_r',
+                    'expires_at': 123.0,
+                },
+                f,
+            )
+        token = TwitchToken(
+            StubCreds(access_token='env_a', refresh_token='env_r'), cache_path=path
+        )
         self.assertEqual(token._access_token, 'cached_a')
         self.assertEqual(token._refresh_token, 'cached_r')
         self.assertEqual(token._expires_at, 123.0)
@@ -69,6 +80,7 @@ class TestTwitchTokenRefresh(unittest.IsolatedAsyncioTestCase):
 
         async def fake(refresh_token):
             calls.append(refresh_token)
+
         token._do_refresh = fake
 
         self.assertEqual(await token.get(), 'a')
@@ -82,6 +94,7 @@ class TestTwitchTokenRefresh(unittest.IsolatedAsyncioTestCase):
             token._refresh_token = 'r1'  # Twitch rotated the refresh token
             token._expires_at = time.time() + 3600
             token._save_cache()
+
         token._do_refresh = fake
 
         self.assertEqual(await token.get(force=True), 'new')
@@ -101,6 +114,7 @@ class TestTwitchTokenRefresh(unittest.IsolatedAsyncioTestCase):
             if refresh_token == 'stale_cached_r':
                 raise RuntimeError('invalid refresh token')
             token._access_token = 'new'
+
         token._do_refresh = fake
 
         self.assertEqual(await token.get(force=True), 'new')

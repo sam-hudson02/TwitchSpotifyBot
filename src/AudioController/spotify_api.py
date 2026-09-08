@@ -4,12 +4,12 @@ import os
 import spotipy
 from spotipy.oauth2 import CacheFileHandler
 
+from AudioController.track_context import TrackContext
+from AudioController.track_info import TrackInfo
+from services.interfaces import SpotifyInterface
 from utils import SpotifyCreds
 from utils.errors import BadLink, NoCurrentTrack, TrackNotFound
-from AudioController.track_info import TrackInfo
-from AudioController.track_context import TrackContext
 from utils.logger import Log
-from services.interfaces import SpotifyInterface
 
 
 class Spotify(SpotifyInterface):
@@ -27,14 +27,17 @@ class Spotify(SpotifyInterface):
 
     # connection / authorization ------------------------------------------
 
-    def oauth(self, redirect_uri: str = 'https://open.spotify.com/') \
-            -> spotipy.SpotifyOAuth:
-        return spotipy.SpotifyOAuth(client_id=self.client_id,
-                                    client_secret=self.secret,
-                                    redirect_uri=redirect_uri,
-                                    cache_handler=self.cache_handler,
-                                    open_browser=False,
-                                    scope=self.scopes)
+    def oauth(
+        self, redirect_uri: str = 'https://open.spotify.com/'
+    ) -> spotipy.SpotifyOAuth:
+        return spotipy.SpotifyOAuth(
+            client_id=self.client_id,
+            client_secret=self.secret,
+            redirect_uri=redirect_uri,
+            cache_handler=self.cache_handler,
+            open_browser=False,
+            scope=self.scopes,
+        )
 
     def connect(self) -> bool:
         self.connected = self._validate_cache()
@@ -57,10 +60,11 @@ class Spotify(SpotifyInterface):
             self.log.error(f'Could not read cached Spotify token: {e}')
             return False
 
-        if cache_data.get('access_token') is None \
-                or cache_data.get('refresh_token') is None:
-            self.log.error('Cached Spotify token is missing access or '
-                           'refresh token')
+        if (
+            cache_data.get('access_token') is None
+            or cache_data.get('refresh_token') is None
+        ):
+            self.log.error('Cached Spotify token is missing access or refresh token')
             return False
 
         if self.verify():

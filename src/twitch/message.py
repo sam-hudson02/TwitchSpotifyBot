@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
-    from twitch.wrapper import Wrapper, API
+    from twitch.wrapper import API, Wrapper
 
 
 class Chatter:
@@ -34,8 +35,9 @@ class Message:
         self.wrapper = service
         # split the '@tags' block off at the first space; tag values such as
         # `emotes` legitimately contain colons, so never split tags on ':'
-        tag_str, _, rest = raw[1:].partition(' ') if raw.startswith('@') \
-            else ('', '', raw)
+        tag_str, _, rest = (
+            raw[1:].partition(' ') if raw.startswith('@') else ('', '', raw)
+        )
         self.tags = self._get_tags(tag_str)
         self.id: str = self._get_id()
         self.chatter = self._get_chatter()
@@ -62,7 +64,7 @@ class Message:
         return {pair[0]: pair[1] if len(pair) > 1 else '' for pair in pairs}
 
     async def reply(self, message: str):
-        await self.wrapper.send(f"@{self.chatter.name} {message}")
+        await self.wrapper.send(f'@{self.chatter.name} {message}')
 
     async def send(self, message: str):
         await self.wrapper.send(message)

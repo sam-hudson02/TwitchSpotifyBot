@@ -6,9 +6,18 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from server.routes import (
+    discord,
+    leaderboard,
+    playback,
+    queue,
+    settings,
+    spotify,
+    twitch,
+    users,
+    ws,
+)
 from server.state import AppState
-from server.routes import (spotify, twitch, discord, queue, leaderboard,
-                           playback, settings, users, ws)
 
 
 def cors_origins() -> list[str]:

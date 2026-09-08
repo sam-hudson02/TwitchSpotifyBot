@@ -4,14 +4,20 @@ from server.deps import get_state, require_auth
 from server.models import UserModel
 from server.state import AppState
 
-router = APIRouter(prefix='/users', tags=['users'],
-                   dependencies=[Depends(require_auth)])
+router = APIRouter(
+    prefix='/users', tags=['users'], dependencies=[Depends(require_auth)]
+)
 
 
 def _user_model(user) -> UserModel:
-    return UserModel(username=user.username, ban=user.ban, dj=user.dj,
-                     admin=user.admin, requests=user.requests,
-                     rates=user.rates)
+    return UserModel(
+        username=user.username,
+        ban=user.ban,
+        dj=user.dj,
+        admin=user.admin,
+        requests=user.requests,
+        rates=user.rates,
+    )
 
 
 @router.get('', response_model=list[UserModel])

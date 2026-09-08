@@ -1,13 +1,16 @@
 import unittest
-from utils.settings import Settings
-from utils.logger import Log
-from utils.db import DB
-from utils.creds import Creds
-from twitch.bot import Bot
-from AudioController.audio_controller import Context
-from services import Services
+
 from mocks.mock_sock import MockSocket
 from mocks.mock_spot import MockSpot
+
+from AudioController.audio_controller import Context
+from services import Services
+from twitch.bot import Bot
+from utils.creds import Creds
+from utils.db import DB
+from utils.logger import Log
+from utils.settings import Settings
+
 # add src to path
 
 
@@ -26,9 +29,13 @@ class TestPublicOnline(unittest.IsolatedAsyncioTestCase):
         # Song-request commands are gated behind settings.active (enabled in
         # production via !sp-on); enable it here so the online cog is testable.
         self.settings.set_active(True)
-        services = Services(creds=self.creds, settings=self.settings,
-                            db=self.db, spotify=self.spot,
-                            context=self.audio_ctx)
+        services = Services(
+            creds=self.creds,
+            settings=self.settings,
+            db=self.db,
+            spotify=self.spot,
+            context=self.audio_ctx,
+        )
         self.bot = Bot(services, socket=self.socket)
         self.wrapper = self.bot.service
         self.ac = self.bot.ac
@@ -69,8 +76,9 @@ class TestPublicOnline(unittest.IsolatedAsyncioTestCase):
 
         # add 'test2' to the queue using url from new account
         author = 'someuser'
-        self.socket.from_twitch('!sr https://open.spotify.com/track/test2',
-                                author, self.channel)
+        self.socket.from_twitch(
+            '!sr https://open.spotify.com/track/test2', author, self.channel
+        )
         await self.wrapper.read()
         expected = f'@{author} test2 by test2 has been added to the queue!'
         self.assertEqual(self.socket.get_last(), expected)
@@ -137,7 +145,7 @@ class TestPublicOnline(unittest.IsolatedAsyncioTestCase):
         author = 'someuser'
         self.socket.from_twitch('!rate', author, self.channel)
         await self.wrapper.read()
-        expected = f'@{author} has rated @{self.channel}\'s song'
+        expected = f"@{author} has rated @{self.channel}'s song"
         self.assertEqual(self.socket.get_last(), expected)
 
         # check rate has been added to db
@@ -149,7 +157,7 @@ class TestPublicOnline(unittest.IsolatedAsyncioTestCase):
         # requester can't rate their own song
         self.socket.from_twitch('!rate', self.channel, self.channel)
         await self.wrapper.read()
-        expected = f'@{self.channel} You can\'t rate your own song! LUL'
+        expected = f"@{self.channel} You can't rate your own song! LUL"
         self.assertEqual(self.socket.get_last(), expected)
 
     async def testRateNoRequester(self):
@@ -166,8 +174,7 @@ class TestPublicOnline(unittest.IsolatedAsyncioTestCase):
         author = 'someuser'
         self.socket.from_twitch('!rate', author, self.channel)
         await self.wrapper.read()
-        expected = (f"@{author} There's no requester to like for the "
-                    "current song!")
+        expected = f"@{author} There's no requester to like for the current song!"
         self.assertEqual(self.socket.get_last(), expected)
 
         # no phantom "None" user, and no stray rate credited

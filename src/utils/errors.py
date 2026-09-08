@@ -70,12 +70,14 @@ class NotAuthorized(Exception):
 class SetupError(Exception):
     def __str__(self):
         return self.__class__.__name__
+
     pass
 
 
 class NoCreds(SetupError):
     def __init__(self, missing: str):
         print(f'No {missing} credential found.')
+
     pass
 
 
@@ -87,4 +89,5 @@ class SettingsError(SetupError):
 class BadLink(Exception):
     def __str__(self):
         return self.__class__.__name__
+
     pass

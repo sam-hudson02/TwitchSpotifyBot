@@ -1,10 +1,13 @@
+from typing import TYPE_CHECKING
+
 from prisma.models import User
-from utils.errors import NotAuthorized, NotActive
-from utils import target_finder, Settings, DB, Perms
-from utils.twitch_utils import is_moderator
+
 from twitch.cog import Cog
 from twitch.router import Context
-from typing import TYPE_CHECKING
+from utils import DB, Perms, Settings, target_finder
+from utils.errors import NotActive, NotAuthorized
+from utils.twitch_utils import is_moderator
+
 if TYPE_CHECKING:
     from twitch.bot import Bot as TwitchBot
 
@@ -37,8 +40,9 @@ class ModCog(Cog):
         if not self.settings.active or self.ac.context.paused:
             raise NotActive
         if not self.ac.context.live:
-            await ctx.reply(self.commands.message('SKIP', 'not_live',
-                                                  channel=self.channel))
+            await ctx.reply(
+                self.commands.message('SKIP', 'not_live', channel=self.channel)
+            )
             return
 
         await self.ac.play_next(skipped=True)
@@ -49,8 +53,9 @@ class ModCog(Cog):
         target = await self.db.get_user(target_username)
 
         if await self.ban(target):
-            await ctx.reply(self.commands.message('BAN', 'banned',
-                                                  target=target_username))
+            await ctx.reply(
+                self.commands.message('BAN', 'banned', target=target_username)
+            )
 
     async def ban(self, target: User):
         # anyone who reached here is a moderator; only admins are protected
@@ -62,8 +67,9 @@ class ModCog(Cog):
     async def unban_command(self, ctx: Context):
         target_username = target_finder(ctx.content)
         await self.db.unban_user(target_username)
-        await ctx.reply(self.commands.message('UNBAN', 'unbanned',
-                                              target=target_username))
+        await ctx.reply(
+            self.commands.message('UNBAN', 'unbanned', target=target_username)
+        )
 
     async def followers_only(self, ctx: Context):
         self.settings.set_permission(Perms.FOLLOWERS)

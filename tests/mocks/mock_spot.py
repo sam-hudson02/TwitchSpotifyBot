@@ -9,31 +9,17 @@ def get_mock_json(name='test') -> dict:
     info = {
         'item': {
             'name': name,
-            'artists': [
-                {
-                    'name': name
-                }
-            ],
+            'artists': [{'name': name}],
             'duration_ms': 10000,
-            'album': {
-                'images': [
-                    {
-                        'url': name
-                    }
-                ]
-            },
+            'album': {'images': [{'url': name}]},
             'id': name,
-            'external_urls': {
-                'spotify': f'https://open.spotify.com/track/{name}'
-            },
+            'external_urls': {'spotify': f'https://open.spotify.com/track/{name}'},
         },
         'context': {
-            'external_urls': {
-                'spotify': f'https://open.spotify.com/playlist/{name}'
-            },
+            'external_urls': {'spotify': f'https://open.spotify.com/playlist/{name}'},
         },
         'progress_ms': 0,
-        'is_playing': True
+        'is_playing': True,
     }
     return info
 

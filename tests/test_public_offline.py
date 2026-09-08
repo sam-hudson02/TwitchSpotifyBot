@@ -1,16 +1,18 @@
+import random
 import unittest
-from utils.settings import Settings
-from utils.logger import Log
-from utils.db import DB
-from utils.creds import Creds
-from twitch.bot import Bot
-from AudioController.audio_controller import Context
-from services import Services
+
 from mocks.mock_sock import MockSocket
 from mocks.mock_spot import MockSpot
-import random
 
+from AudioController.audio_controller import Context
+from services import Services
+from twitch.bot import Bot
+from utils.creds import Creds
+from utils.db import DB
+from utils.logger import Log
+from utils.settings import Settings
 from utils.types import SongReq
+
 # add src to path
 
 
@@ -26,9 +28,13 @@ class TestPublicOnline(unittest.IsolatedAsyncioTestCase):
         self.spot = MockSpot()
         self.audio_ctx = Context()
         self.settings = Settings()
-        services = Services(creds=self.creds, settings=self.settings,
-                            db=self.db, spotify=self.spot,
-                            context=self.audio_ctx)
+        services = Services(
+            creds=self.creds,
+            settings=self.settings,
+            db=self.db,
+            spotify=self.spot,
+            context=self.audio_ctx,
+        )
         self.bot = Bot(services, socket=self.socket)
         self.wrapper = self.bot.service
         self.ac = self.bot.ac
@@ -103,6 +109,8 @@ class TestPublicOnline(unittest.IsolatedAsyncioTestCase):
         # check stats
         self.socket.from_twitch('!stats', 'user2', self.channel)
         await self.wrapper.read()
-        expected = f'@user2 Your position is 2 with 2 rates from 3 requests and 0 rates given!'
+        expected = (
+            f'@user2 Your position is 2 with 2 rates from 3 requests and 0 rates given!'
+        )
         last = self.socket.get_last()
         self.assertEqual(last, expected)

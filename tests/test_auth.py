@@ -26,8 +26,8 @@ class TestAuth(unittest.TestCase):
 
     def test_require_auth_valid(self):
         self.assertIsNone(
-            require_auth(state=state_with('secret'),
-                         credentials=bearer('secret')))
+            require_auth(state=state_with('secret'), credentials=bearer('secret'))
+        )
 
     def test_require_auth_bad_token(self):
         with self.assertRaises(HTTPException) as cm:

@@ -1,13 +1,13 @@
 import asyncio
 from typing import Callable
 
-from utils import Log, Creds, init_dirs, Settings, DB
 from AudioController.audio_controller import Context
 from AudioController.spotify_api import Spotify
-from services import Services, TwitchInterface, DiscordInterface
-from server.queue_socket import QueueSocket
-from twitch.bot import Bot
 from disc.webhook import DiscordHook
+from server.queue_socket import QueueSocket
+from services import DiscordInterface, Services, TwitchInterface
+from twitch.bot import Bot
+from utils import DB, Creds, Log, Settings, init_dirs
 
 TwitchFactory = Callable[[Services], TwitchInterface]
 DiscordFactory = Callable[[Services], DiscordInterface]
@@ -23,9 +23,14 @@ class AppState:
     thread. Start-up is best-effort: a bad token or web error is logged and
     reported, never allowed to crash the server."""
 
-    def __init__(self, *, log: Log, services: Services,
-                 twitch_factory: TwitchFactory,
-                 discord_factory: DiscordFactory):
+    def __init__(
+        self,
+        *,
+        log: Log,
+        services: Services,
+        twitch_factory: TwitchFactory,
+        discord_factory: DiscordFactory,
+    ):
         self.log = log
         self.services = services
         self._twitch_factory = twitch_factory
@@ -39,13 +44,16 @@ class AppState:
         init_dirs()
         log = Log('server', file='./data/server.log')
         creds = Creds(log)
-        services = Services(creds=creds,
-                            settings=Settings(),
-                            db=DB(),
-                            spotify=Spotify(creds.spotify),
-                            context=Context())
-        return cls(log=log, services=services,
-                   twitch_factory=Bot, discord_factory=DiscordHook)
+        services = Services(
+            creds=creds,
+            settings=Settings(),
+            db=DB(),
+            spotify=Spotify(creds.spotify),
+            context=Context(),
+        )
+        return cls(
+            log=log, services=services, twitch_factory=Bot, discord_factory=DiscordHook
+        )
 
     # convenience accessors for the routes
     @property
@@ -147,8 +155,9 @@ class AppState:
 
     # users --------------------------------------------------------------
 
-    async def set_user_flags(self, username: str, *, ban: bool | None = None,
-                             dj: bool | None = None):
+    async def set_user_flags(
+        self, username: str, *, ban: bool | None = None, dj: bool | None = None
+    ):
         """Ensure the user exists, then apply whichever role flags are given,
         and return the updated user."""
         await self.services.db.get_user(username)
@@ -186,13 +195,17 @@ class AppState:
     # queue --------------------------------------------------------------
 
     async def queue_snapshot(self) -> list[dict]:
-        return [{'id': q.id,
-                 'position': q.position,
-                 'name': q.songName,
-                 'artist': q.artist,
-                 'requester': q.requester,
-                 'url': q.url}
-                for q in await self.services.db.get_queue()]
+        return [
+            {
+                'id': q.id,
+                'position': q.position,
+                'name': q.songName,
+                'artist': q.artist,
+                'requester': q.requester,
+                'url': q.url,
+            }
+            for q in await self.services.db.get_queue()
+        ]
 
     async def queue_move(self, req_id: int, after: int | None) -> None:
         """Move a queue entry to just after `after` (or to the front if None),
@@ -209,8 +222,9 @@ class AppState:
             if idx is None:
                 raise ValueError(f'unknown queue id {after}')
             prev_pos = others[idx].position
-            next_pos = others[idx + 1].position if idx + 1 < len(others) \
-                else prev_pos + 1
+            next_pos = (
+                others[idx + 1].position if idx + 1 < len(others) else prev_pos + 1
+            )
             new_pos = (prev_pos + next_pos) / 2
 
         await self.services.db.set_position(req_id, new_pos)

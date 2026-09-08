@@ -23,12 +23,18 @@ CREATE TABLE IF NOT EXISTS "_prisma_migrations" (
 
 
 def pending(conn: sqlite3.Connection) -> list[Path]:
-    applied = {row[0] for row in
-               conn.execute('SELECT migration_name FROM "_prisma_migrations"')}
-    migrations = [d for d in MIGRATIONS_DIR.iterdir()
-                  if d.is_dir() and (d / 'migration.sql').exists()]
-    return sorted((m for m in migrations if m.name not in applied),
-                  key=lambda m: m.name)
+    applied = {
+        row[0]
+        for row in conn.execute('SELECT migration_name FROM "_prisma_migrations"')
+    }
+    migrations = [
+        d
+        for d in MIGRATIONS_DIR.iterdir()
+        if d.is_dir() and (d / 'migration.sql').exists()
+    ]
+    return sorted(
+        (m for m in migrations if m.name not in applied), key=lambda m: m.name
+    )
 
 
 def run() -> None:
@@ -43,9 +49,12 @@ def run() -> None:
                 'INSERT INTO "_prisma_migrations" (id, checksum, '
                 'migration_name, finished_at, applied_steps_count) '
                 'VALUES (?, ?, ?, current_timestamp, 1)',
-                (str(uuid.uuid4()),
-                 hashlib.sha256(sql.encode()).hexdigest(),
-                 migration.name))
+                (
+                    str(uuid.uuid4()),
+                    hashlib.sha256(sql.encode()).hexdigest(),
+                    migration.name,
+                ),
+            )
             conn.commit()
             print(f'Applied migration {migration.name}')
     finally:

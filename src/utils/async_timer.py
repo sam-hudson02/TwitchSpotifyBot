@@ -5,8 +5,7 @@ from typing import Callable, Optional
 
 
 class Timer:
-    def __init__(self, timeout: int, callback: Callable,
-                 args: Optional[list] = None):
+    def __init__(self, timeout: int, callback: Callable, args: Optional[list] = None):
         # convert milliseconds to seconds
         self._timeout = float(timeout / 1000)
         self._callback = callback

@@ -1,8 +1,11 @@
-from prisma.models import User
-from twitch.message import Chatter
-from utils.errors import BadPerms, TimeNotFound, TargetNotFound
 from typing import TYPE_CHECKING
+
+from prisma.models import User
+
+from twitch.message import Chatter
+from utils.errors import BadPerms, TargetNotFound, TimeNotFound
 from utils.settings import Perms, Settings
+
 if TYPE_CHECKING:
     from AudioController.audio_controller import Context as SongContext
     from utils.db import DB
