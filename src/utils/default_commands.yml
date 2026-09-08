@@ -4,6 +4,9 @@
 #   messages: response templates; {placeholders} are filled in by the bot
 # Copy/edit data/commands.yml to customise; unset values fall back to these.
 
+# --- Prefix (All Cogs) ---
+PREFIX: ["!"]
+
 # --- Song request (OnlineCog) ---
 
 SONG_REQUEST:
