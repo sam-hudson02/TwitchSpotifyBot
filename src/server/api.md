@@ -9,8 +9,9 @@ controller needs a Spotify session); Discord does not depend on it.
 
 ## Authentication
 
-Mutating endpoints (POST) require a bearer token; read-only endpoints (GET) are
-open. Send the token configured as `SERVER_API_TOKEN`:
+Mutating endpoints (POST, PUT and DELETE) require a bearer token; read-only
+endpoints (GET) are open, with `/users` the one exception. Send the token
+configured as `SERVER_API_TOKEN`:
 
 ```
 Authorization: Bearer <SERVER_API_TOKEN>
@@ -25,8 +26,10 @@ Authorization: Bearer <SERVER_API_TOKEN>
 
 For a browser dashboard on a different origin, set `SERVER_CORS_ORIGINS` to a
 comma-separated list of allowed origins. Left unset, any origin is allowed
-(mutations are still guarded by the token, so this is safe). CORS covers the
-HTTP routes; the WebSocket is guarded by its `?token=` query param instead.
+(mutations are still guarded by the token, so this is safe). Credentials are
+only allowed when the origin list is explicit, since they cannot be combined
+with a wildcard. CORS covers the HTTP routes; the WebSocket carries its token as
+a subprotocol instead (see below).
 
 ---
 
@@ -34,9 +37,9 @@ HTTP routes; the WebSocket is guarded by its `?token=` query param instead.
 
 ### GET /
 
-Entry point. If Spotify is not yet connected, redirects (302) to the Spotify
+Entry point. If Spotify is not yet connected, redirects to the Spotify
 authorization page. If it is connected, starts the Twitch bot and returns
-`200 "Bot is running"`. Returns `503` if Spotify could not be initialised.
+`200 "Bot is running"`.
 
 ### GET /callback
 
@@ -45,7 +48,6 @@ starts the Twitch bot.
 
 - `200 "Bot is running"` on success.
 - `400` if the token could not be verified.
-- `503` if Spotify is unavailable.
 
 ---
 
@@ -112,7 +114,7 @@ Each returns a `ControlResponse`:
 
 ```typescript
 type ControlResponse = {
-  service: 'twitch' | 'discord';
+  service: 'twitch' | 'discord' | 'playback';
   running: boolean;
   message: string;   // "started" | "stopped" | "already running" | "not running"
 };
