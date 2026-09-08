@@ -13,6 +13,7 @@ A full list of commands can be found [here](https://github.com/sam-hudson02/Twit
 - **Moderation**: ban or timeout users from requesting, mod/unmod users, and clear the queue.
 - **Live-aware**: only takes requests while the channel is live.
 - **Discord integration (optional)**: posts a live-updating queue and leaderboard to Discord through webhooks.
+- Rest API and WebSocket for Dashboard integration (see [`src/server/api.md`](src/server/api.md)).
 
 ## Prerequisites
 
@@ -47,6 +48,9 @@ TWITCH_BOT_NAME=the twitch account the bot posts as
 # Optional Discord integration (webhook URLs)
 DISCORD_QUEUE_WEBHOOK=
 DISCORD_LEADERBOARD_WEBHOOK=
+
+SERVER_API_TOKEN=
+SERVER_CORS_ORIGINS=
 ```
 
 `TWITCH_CHANNEL` is the channel the bot listens in; `TWITCH_BOT_NAME` is the account it speaks as (often the same account). Leave the Discord lines blank if you don't want Discord integration.
@@ -115,6 +119,6 @@ uv run prisma db push   # create ./data/db.sqlite3 from the schema
 uv run python src/server.py
 ```
 
-Then open `http://localhost:5000` and log in to Spotify.
+Then open `http://127.0.0.1:5000` and log in to Spotify.
 
 `prisma generate` shells out to the Node-based Prisma CLI, so you need Node.js available when running locally. The Docker image installs it for you.
